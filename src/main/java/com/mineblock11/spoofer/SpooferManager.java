@@ -36,11 +36,11 @@ public class SpooferManager implements ModInitializer {
 
     public static Text replaceStringInTextKeepFormatting(Text text, String toReplace, String replaceWith) {
         MutableText mutableText = text.copy();
-        mutableText.visit((style, source) -> {
-            if (source.equals(toReplace))
-                return Optional.of(Text.literal(replaceWith).setStyle(style));
-            return Optional.empty();
-        }, Style.EMPTY);
+        mutableText.visit((style, source) -> source.equals(toReplace) ?
+                        Optional.of(Text.literal(replaceWith).setStyle(style)) :
+                        Optional.empty(),
+                Style.EMPTY
+        );
         return mutableText;
     }
 
@@ -54,8 +54,7 @@ public class SpooferManager implements ModInitializer {
     public static Collection<String> getOnlinePlayerNames() {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.player == null || client.getNetworkHandler() == null) {
-            SPOOF_NEW_PLAYERS.setLeft(false);
-            SPOOF_NEW_PLAYERS.setRight("");
+            SPOOF_NEW_PLAYERS = new Pair(false, "");
             return Collections.emptyList(); // Not in a world yet
         }
 
@@ -63,6 +62,6 @@ public class SpooferManager implements ModInitializer {
                 .stream()
                 .map(PlayerListEntry::getProfile)
                 .map(GameProfile::getName)
-                .toList();
+                .collect(Collectors.toList());
     }
 }
