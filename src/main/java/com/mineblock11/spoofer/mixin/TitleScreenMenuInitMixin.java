@@ -3,6 +3,7 @@ package com.mineblock11.spoofer.mixin;
 import com.mineblock11.spoofer.SkinManager;
 import net.minecraft.client.gui.screen.TitleScreen;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -17,6 +18,7 @@ import static com.mineblock11.spoofer.SpooferManager.TEXTURE_CACHE;
 @Mixin(TitleScreen.class)
 public class TitleScreenMenuInitMixin {
 
+    @Unique
     private static boolean hasLoadedTextures = false;
 
     @Inject(method = "init", at = @At("HEAD"))

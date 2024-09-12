@@ -113,7 +113,7 @@ public class SkinManager {
     }
 
     public static Identifier loadFromFile(File file) {
-        Identifier id = new Identifier("spoofer", file.getName().replace(".png", "").toLowerCase());
+        Identifier id = Identifier.of("spoofer", file.getName().replace(".png", "").toLowerCase());
         NativeImage rawNativeImage = toNativeImage(file);
         NativeImage processedNativeImage = remapTexture(rawNativeImage);
         NativeImageBackedTexture processedImageBackedTexture = new NativeImageBackedTexture(processedNativeImage);
