@@ -48,10 +48,7 @@ public class SpooferClient implements ClientModInitializer {
             // /spoof <target> <username> [keepSkin]
             dispatcher.register(literal("spoof")
                     .then(argument("target", StringArgumentType.string())
-                            .suggests((ctx, builder) -> CommandSource.suggestMatching(() -> {
-                                Collection<String> names = SpooferManager.getOnlinePlayerNames();
-                                return Stream.concat(Stream.of("ALL"), names.stream()).iterator();
-                            }, builder))
+                            .suggests((ctx, builder) -> CommandSource.suggestMatching(() -> SpooferManager.getOnlinePlayerNames().stream().iterator(), builder))
                             .then(argument("username", StringArgumentType.string())
                                     .then(argument("keepSkin", BoolArgumentType.bool())
                                             .executes(ctx -> executeSpoofCommand(ctx,
@@ -102,7 +99,43 @@ public class SpooferClient implements ClientModInitializer {
                                     ))
                             .executes(ctx -> executeSpoofNewCommand(ctx, false, StringArgumentType.getString(ctx, "namePrefix"))
                             )
-                    ).executes(ctx -> executeSpoofNewCommand(ctx, false, "Disguised")));
+                    ).executes(ctx -> executeSpoofNewCommand(ctx, false, "fake_name")));
+
+            // /spoofall [namePrefix] [keepSkin]
+            dispatcher.register(literal("spoofall")
+                    .then(argument("namePrefix", StringArgumentType.string())
+                            .then(argument("keepSkin", BoolArgumentType.bool())
+                                    .executes(ctx -> executeSpoofCommand(ctx,
+                                            "ALL",
+                                            StringArgumentType.getString(ctx, "namePrefix"),
+                                            BoolArgumentType.getBool(ctx, "keepSkin"))
+                                    ))
+                            .executes(ctx -> executeSpoofCommand(ctx, "ALL", StringArgumentType.getString(ctx, "namePrefix"), false)
+                            )
+                    ).executes(ctx -> executeSpoofCommand(ctx, "ALL", "fake_name", false)));
+
+            // /whospoof [target]
+            dispatcher.register(literal("whospoof")
+                    .then(argument("target", StringArgumentType.string())
+                            .suggests((ctx, builder) -> CommandSource.suggestMatching(SpooferManager.currentlySpoofed.keySet(), builder))
+                            .executes(ctx -> {
+                                String target = StringArgumentType.getString(ctx, "target");
+                                Pair<String, Boolean> spoofEntry = SpooferManager.currentlySpoofed.get(target);
+                                if (spoofEntry == null) {
+                                    ctx.getSource().sendFeedback(Text.literal(target + " is not spoofed"));
+                                } else {
+                                    ctx.getSource().sendFeedback(Text.literal(target + " is spoofed as " + spoofEntry.getLeft()));
+                                }
+                                return Command.SINGLE_SUCCESS;
+                            })
+                    )
+                    .executes(ctx -> {
+                        ctx.getSource().sendFeedback(Text.literal("Currently spoofed players:"));
+                        SpooferManager.currentlySpoofed.forEach((target, spoofEntry) -> {
+                            ctx.getSource().sendFeedback(Text.literal(target + " -> " + spoofEntry.getLeft()));
+                        });
+                        return Command.SINGLE_SUCCESS;
+                    }));
         }));
     }
 
