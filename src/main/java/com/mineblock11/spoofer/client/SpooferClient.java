@@ -67,6 +67,7 @@ public class SpooferClient implements ClientModInitializer {
                     .executes(ctx -> {
                         SpooferManager.currentlySpoofed.clear();
                         ctx.getSource().sendFeedback(Text.literal("Unspoofed everyone").formatted(Formatting.GRAY));
+                        SpooferManager.SPOOF_NEW_PLAYERS.setLeft(false);
                         return Command.SINGLE_SUCCESS;
                     })
                     .then(argument("target", StringArgumentType.string())
@@ -112,7 +113,10 @@ public class SpooferClient implements ClientModInitializer {
                                     ))
                             .executes(ctx -> executeSpoofCommand(ctx, "ALL", StringArgumentType.getString(ctx, "namePrefix"), false)
                             )
-                    ).executes(ctx -> executeSpoofCommand(ctx, "ALL", "fake_name", false)));
+                    ).executes(ctx -> {
+                        SpooferManager.SPOOF_NEW_PLAYERS.setLeft(true);
+                        return executeSpoofCommand(ctx, "ALL", "fake_name", false);
+                    }));
 
             // /whospoof [target]
             dispatcher.register(literal("whospoof")
