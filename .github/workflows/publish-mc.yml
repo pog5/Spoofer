@@ -1,8 +1,13 @@
 name: Upload release assets
  
 on:
+  push:
+    branches:
+      - master
   release:
     types: [published]
+  workflow_dispatch:
+
  
 jobs:
   upload_asset:
@@ -20,15 +25,16 @@ jobs:
         with:
           distribution: temurin
           cache: gradle
-          java-version: 17
+          java-version: 21
       - run: chmod +x gradlew
       - name: Build And Publish To Maven
-        run: ./gradlew build publish --no-daemon -PmineblockMavenUsername=mineblock11 -PmineblockMavenPassword=${{ secrets.MAVEN_TOKEN }}
-      - uses: Kir-Antipov/mc-publish@v3.2
-        with:
-          version-resolver: exact
-          modrinth-id: ${{ vars.MODRINTH_ID }}
-          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
-          curseforge-id: ${{ vars.CURSEFORGE_ID }}
-          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
-          github-token: ${{ secrets.CLASSIC_GITHUB_TOKEN }}
+        run: ./gradlew build
+#        run: ./gradlew build publish --no-daemon -PmineblockMavenUsername=mineblock11 -PmineblockMavenPassword=${{ secrets.MAVEN_TOKEN }}
+#      - uses: Kir-Antipov/mc-publish@v3.2
+#        with:
+#          version-resolver: exact
+#          modrinth-id: ${{ vars.MODRINTH_ID }}
+#          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+#          curseforge-id: ${{ vars.CURSEFORGE_ID }}
+#          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+#          github-token: ${{ secrets.CLASSIC_GITHUB_TOKEN }}
