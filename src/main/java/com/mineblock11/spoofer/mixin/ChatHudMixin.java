@@ -20,14 +20,15 @@ public class ChatHudMixin {
             return text;
         }
 
+        Text newText = text;
         for (var entry : SpooferManager.currentlySpoofed.entrySet()) {
             String target = entry.getKey();
-            if (text.getString().contains(target)) {
+            while (newText.getString().contains(target)) {
                 String newName = entry.getValue().getLeft();
-                return SpooferManager.replaceStringInTextKeepFormatting(text, target, newName);
+                newText = SpooferManager.replaceStringInTextKeepFormatting(newText, target, newName);
             }
         }
 
-        return text;
+        return newText;
     }
 }

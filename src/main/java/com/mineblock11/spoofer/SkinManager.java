@@ -12,17 +12,16 @@ import net.minecraft.util.Identifier;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.*;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLConnection;
+import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
 public class SkinManager {
 
-    public static String getHTML(String urlToRead) throws IOException {
+    public static String getHTML(String urlToRead) throws IOException, URISyntaxException {
         StringBuilder result = new StringBuilder();
-        URL url = new URL(urlToRead);
+        URI uri = new URI(urlToRead);
+        URL url = uri.toURL();
         URLConnection conn = url.openConnection();
         conn.setRequestProperty("User-Agent", "Mozilla/5.0"); // Add User-Agent to avoid 403 errors
 
@@ -117,12 +116,23 @@ public class SkinManager {
     }
 
     public static File downloadSkin(String username) throws Exception {
-        String uuid = getUUID(username);
+        String textureUrl;
+        try {
+            String uuid = getUUID(username);
 
-        String sessionInfo = getHTML("https://sessionserver.mojang.com/session/minecraft/profile/" + uuid);
-        String textureUrl = getTextureURL(sessionInfo);
+            String sessionInfo = getHTML("https://sessionserver.mojang.com/session/minecraft/profile/" + uuid);
+            textureUrl = getTextureURL(sessionInfo);
+        } catch (Exception e) {
+            System.err.println("[SPOOFER]: Error loading skin for " + e.getMessage());
+            System.err.println("[SPOOFER]: Falling back to Steve skin");
+            String uuid = getUUID("Steve");
+            String sessionInfo = getHTML("https://sessionserver.mojang.com/session/minecraft/profile/" + uuid);
+            textureUrl = getTextureURL(sessionInfo);
+        }
 
-        URL url = new URL(textureUrl);
+        assert textureUrl != null;
+        URI uri = new URI(textureUrl);
+        URL url = uri.toURL();
         BufferedImage img = ImageIO.read(url);
         File file = new File("skins" + File.separator + username + ".png"); // Use provided username for filename
         ImageIO.write(img, "png", file);
@@ -130,7 +140,7 @@ public class SkinManager {
     }
 
     // Helper function to get UUID from Mojang API
-    private static String getUUID(String username) throws IOException {
+    private static String getUUID(String username) throws IOException, URISyntaxException {
         String response = getHTML("https://api.mojang.com/users/profiles/minecraft/" + username);
         if (response.isEmpty()) {
             response = getHTML("https://api.mojang.com/users/profiles/minecraft/alex");

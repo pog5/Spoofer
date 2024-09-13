@@ -26,7 +26,7 @@
     "spoofer.mixins.json"
   ],
   "depends": {
-    "fabricloader": ">=0.16.5",
+    "fabricloader": ">=0.16.2",
     "fabric": "*",
     "minecraft": ">=1.21"
   }

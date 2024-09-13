@@ -10,32 +10,55 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.command.CommandSource;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Pair;
+
+import java.util.Collection;
+import java.util.Random;
+import java.util.stream.Stream;
 
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.argument;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.literal;
 
 @Environment(EnvType.CLIENT)
 public class SpooferClient implements ClientModInitializer {
+    Random random = new Random();
+
     @Override
     public void onInitializeClient() {
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (SpooferManager.SPOOF_NEW_PLAYERS.getLeft() && !SpooferManager.getOnlinePlayerNames().isEmpty()) {
+                SpooferManager.PLAYER_LIST = SpooferManager.getOnlinePlayerNames();
+                for (String player : SpooferManager.PLAYER_LIST) {
+                    if (SpooferManager.currentlySpoofed.containsKey(player) || SpooferManager.AUTOSPOOF_SEEN_PLAYERS.contains(player))
+                        continue;
+                    int randomSuffix = random.nextInt(1000);
+                    String paddedNumber = String.format("%03d", randomSuffix);
+                    SpooferManager.currentlySpoofed.put(player, new Pair<>(SpooferManager.SPOOF_NEW_PLAYERS.getRight() + paddedNumber, SpooferManager.SPOOF_NEW_PLAYERS.getLeft()));
+                    SpooferManager.AUTOSPOOF_SEEN_PLAYERS.add(player);
+                }
+            }
+        });
+
         ClientCommandRegistrationCallback.EVENT.register(((dispatcher, registryAccess) -> {
 
             // /spoof <target> <username> [keepSkin]
             dispatcher.register(literal("spoof")
                     .then(argument("target", StringArgumentType.string())
-                            .suggests((ctx, builder) -> CommandSource.suggestMatching(SpooferManager.getOnlinePlayerNames(), builder))
+                            .suggests((ctx, builder) -> CommandSource.suggestMatching(() -> {
+                                Collection<String> names = SpooferManager.getOnlinePlayerNames();
+                                return Stream.concat(Stream.of("ALL"), names.stream()).iterator();
+                            }, builder))
                             .then(argument("username", StringArgumentType.string())
                                     .then(argument("keepSkin", BoolArgumentType.bool())
-                                            .executes(ctx -> {
-                                                return executeSpoofCommand(ctx,
-                                                        StringArgumentType.getString(ctx, "target"),
-                                                        StringArgumentType.getString(ctx, "username"),
-                                                        BoolArgumentType.getBool(ctx, "keepSkin"));
-                                            }))
+                                            .executes(ctx -> executeSpoofCommand(ctx,
+                                                    StringArgumentType.getString(ctx, "target"),
+                                                    StringArgumentType.getString(ctx, "username"),
+                                                    BoolArgumentType.getBool(ctx, "keepSkin"))
+                                            ))
                                     .executes(ctx -> executeSpoofCommand(ctx,
                                             StringArgumentType.getString(ctx, "target"),
                                             StringArgumentType.getString(ctx, "username"),
@@ -69,14 +92,17 @@ public class SpooferClient implements ClientModInitializer {
                 return Command.SINGLE_SUCCESS;
             }));
 
-            // /spoofnew [keepSkin]
+            // /spoofnew [namePrefix] [keepSkin]
             dispatcher.register(literal("spoofnew")
-                    .then(argument("keepSkin", BoolArgumentType.bool())
-                            .executes(ctx -> {
-                                boolean keepSkin = BoolArgumentType.getBool(ctx, "keepSkin");
-                                return executeSpoofNewCommand(ctx, keepSkin);
-                            }))
-                    .executes(ctx -> executeSpoofNewCommand(ctx, false)));
+                    .then(argument("namePrefix", StringArgumentType.string())
+                            .then(argument("keepSkin", BoolArgumentType.bool())
+                                    .executes(ctx -> executeSpoofNewCommand(ctx,
+                                            BoolArgumentType.getBool(ctx, "keepSkin"),
+                                            StringArgumentType.getString(ctx, "namePrefix"))
+                                    ))
+                            .executes(ctx -> executeSpoofNewCommand(ctx, false, StringArgumentType.getString(ctx, "namePrefix"))
+                            )
+                    ).executes(ctx -> executeSpoofNewCommand(ctx, false, "Disguised")));
         }));
     }
 
@@ -102,10 +128,12 @@ public class SpooferClient implements ClientModInitializer {
     }
 
     // Helper function to execute /spoofnew command logic
-    private int executeSpoofNewCommand(CommandContext<FabricClientCommandSource> ctx, boolean keepSkin) {
+    private int executeSpoofNewCommand(CommandContext<FabricClientCommandSource> ctx, boolean keepSkin, String namePrefix) {
         SpooferManager.SPOOF_NEW_PLAYERS.setLeft(!SpooferManager.SPOOF_NEW_PLAYERS.getLeft());
+        SpooferManager.SPOOF_NEW_PLAYERS.setRight(namePrefix);
+        SpooferManager.AUTOSPOOF_SEEN_PLAYERS.clear();
         String stateText = SpooferManager.SPOOF_NEW_PLAYERS.getLeft() ? "ENABLED" : "DISABLED";
-        ctx.getSource().sendFeedback(Text.literal("Spoofing new joins: ")
+        ctx.getSource().sendFeedback(Text.literal("Spoofing new joins as \"" + namePrefix + "\": ")
                 .append(Text.literal(stateText).formatted(SpooferManager.SPOOF_NEW_PLAYERS.getLeft() ? Formatting.GREEN : Formatting.RED))
                 .append(Text.literal(" (" + (keepSkin ? "" : "not ") + "keeping skins)").formatted(Formatting.GRAY)));
         return Command.SINGLE_SUCCESS;

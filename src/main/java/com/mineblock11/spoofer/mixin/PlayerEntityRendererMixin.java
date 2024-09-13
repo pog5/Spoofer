@@ -8,6 +8,7 @@ import net.minecraft.client.render.entity.PlayerEntityRenderer;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.Pair;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -27,10 +28,11 @@ public class PlayerEntityRendererMixin {
     @Inject(method = "getTexture(Lnet/minecraft/client/network/AbstractClientPlayerEntity;)Lnet/minecraft/util/Identifier;", cancellable = true, at = @At("TAIL"))
     public void getTexture(AbstractClientPlayerEntity playerEntity, CallbackInfoReturnable<Identifier> cir) {
         String playerName = playerEntity.getGameProfile().getName();
-        Map.Entry<String, Boolean> spoofEntry = (Map.Entry<String, Boolean>) SpooferManager.currentlySpoofed.get(playerName);
+        Pair<String, Boolean> spoofEntry = currentlySpoofed.get(playerName);
 
-        if (spoofEntry != null && spoofEntry.getValue()) { // Check if spoofed and enabled
-            String spoofedUsername = spoofEntry.getKey();
+        if (spoofEntry != null && !spoofEntry.getRight()) { // Check if spoofed and not keeping skin
+            // remove 1-3 digit suffix
+            String spoofedUsername = spoofEntry.getLeft().replaceFirst("\\d{1,3}$", "");
 
             Identifier cachedTexture = TEXTURE_CACHE.get(spoofedUsername);
             if (cachedTexture != null) {
@@ -38,13 +40,14 @@ public class PlayerEntityRendererMixin {
                 return;
             }
 
+
+            Identifier newTexture = null;
             try {
-                Identifier newTexture = SkinManager.loadFromFile(SkinManager.downloadSkin(spoofedUsername));
+                newTexture = SkinManager.loadFromFile(SkinManager.downloadSkin(spoofedUsername));
                 TEXTURE_CACHE.put(spoofedUsername, newTexture);
                 cir.setReturnValue(newTexture);
             } catch (Exception e) {
-                System.err.println("Error loading skin for " + spoofedUsername + ": " + e.getMessage());
-                // Handle the exception appropriately, maybe log it and/or use a default skin
+                throw new RuntimeException("Failed to load skin for " + spoofedUsername, e);
             }
         }
     }
@@ -64,10 +67,10 @@ public class PlayerEntityRendererMixin {
         }
 
         String playerName = currentEntity.getGameProfile().getName();
-        Map.Entry<String, Boolean> spoofEntry = (Map.Entry<String, Boolean>) SpooferManager.currentlySpoofed.get(playerName);
+        Pair<String, Boolean> spoofEntry = SpooferManager.currentlySpoofed.get(playerName);
 
-        if (spoofEntry != null && spoofEntry.getValue()) {
-            String newName = spoofEntry.getKey();
+        if (spoofEntry != null) {
+            String newName = spoofEntry.getLeft();
             return SpooferManager.replaceStringInTextKeepFormatting(text, playerName, newName);
         }
 

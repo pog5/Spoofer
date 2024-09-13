@@ -37,7 +37,7 @@ public class TitleScreenMenuInitMixin {
                 for (File img : imageFiles) {
                     try {
                         var id = SkinManager.loadFromFile(img);
-                        System.out.println("Loaded " + id);
+//                        System.out.println("Loaded " + id);
                         TEXTURE_CACHE.put(img.getName().replace(".png", ""), id);
                     } catch (IOException e) {
                         System.err.println("Error loading skin from file: " + img.getName());
