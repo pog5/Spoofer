@@ -16,15 +16,18 @@ import java.util.Optional;
 public class ChatHudMixin {
     @ModifyVariable(method = "addMessage(Lnet/minecraft/text/Text;Lnet/minecraft/network/message/MessageSignatureData;Lnet/minecraft/client/gui/hud/MessageIndicator;)V", at = @At("HEAD"), ordinal = 0, argsOnly = true)
     public Text modifyAddMessage(Text text) {
-        if (!SpooferManager.ENABLE_CHAT_SPOOF || text.getString().startsWith("Spoofed"))
+        if (!SpooferManager.ENABLE_CHAT_SPOOF || text.getString().startsWith("Spoofed")) {
             return text;
-        for (String target : SpooferManager.currentlySpoofed.keySet()) {
-            if(text.toString().contains(target)) {
-                var pair = SpooferManager.currentlySpoofed.get(target);
-                var newName = pair.getLeft();
+        }
+
+        for (var entry : SpooferManager.currentlySpoofed.entrySet()) {
+            String target = entry.getKey();
+            if (text.getString().contains(target)) {
+                String newName = entry.getValue().getLeft();
                 return SpooferManager.replaceStringInTextKeepFormatting(text, target, newName);
             }
         }
+
         return text;
     }
 }

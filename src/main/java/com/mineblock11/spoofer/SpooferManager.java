@@ -54,7 +54,7 @@ public class SpooferManager implements ModInitializer {
     public static Collection<String> getOnlinePlayerNames() {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.player == null || client.getNetworkHandler() == null) {
-            SPOOF_NEW_PLAYERS = new Pair(false, "");
+            SPOOF_NEW_PLAYERS = new Pair<>(false, "");
             return Collections.emptyList(); // Not in a world yet
         }
 

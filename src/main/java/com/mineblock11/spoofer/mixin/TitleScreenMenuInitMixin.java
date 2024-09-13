@@ -23,23 +23,33 @@ public class TitleScreenMenuInitMixin {
 
     @Inject(method = "init", at = @At("HEAD"))
     public void titleScreenInit(CallbackInfo ci) {
-        if(hasLoadedTextures) return;
+        if (hasLoadedTextures) {
+            return;
+        }
 
-        // Load textures once we know resources have fully loaded.
         try {
-            File file = new File(String.valueOf(Files.createDirectories(Path.of("skins"))));
-            var imgs = file.listFiles();
+            Path skinsDirectory = Path.of("skins");
+            Files.createDirectories(skinsDirectory); // Create if not exists
 
-            assert imgs != null;
-            for (File img : imgs) {
-                var id = SkinManager.loadFromFile(img);
-                System.out.println("Loaded " + id);
-                TEXTURE_CACHE.put(img.getName().replace(".png", ""), id);
+            File[] imageFiles = skinsDirectory.toFile().listFiles((dir, name) -> name.endsWith(".png"));
+
+            if (imageFiles != null) {
+                for (File img : imageFiles) {
+                    try {
+                        var id = SkinManager.loadFromFile(img);
+                        System.out.println("Loaded " + id);
+                        TEXTURE_CACHE.put(img.getName().replace(".png", ""), id);
+                    } catch (IOException e) {
+                        System.err.println("Error loading skin from file: " + img.getName());
+                        e.printStackTrace();
+                    }
+                }
             }
 
             hasLoadedTextures = true;
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            System.err.println("Error accessing or creating skins directory.");
+            e.printStackTrace();
         }
     }
 }
