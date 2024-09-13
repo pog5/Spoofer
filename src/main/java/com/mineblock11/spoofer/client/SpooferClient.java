@@ -17,7 +17,9 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.Pair;
 
 import java.util.Collection;
+import java.util.Map;
 import java.util.Random;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.argument;
@@ -90,6 +92,16 @@ public class SpooferClient implements ClientModInitializer {
                 return Command.SINGLE_SUCCESS;
             }));
 
+            // /toggletabspoof
+            dispatcher.register(literal("toggletabspoof").executes(ctx -> {
+                SpooferManager.ENABLE_TAB_SPOOF = !SpooferManager.ENABLE_TAB_SPOOF;
+                ctx.getSource().sendFeedback(Text.literal("TAB Spoof is now ")
+                        .append(Text.literal(SpooferManager.ENABLE_TAB_SPOOF ? "enabled" : "disabled")
+                                .formatted(SpooferManager.ENABLE_TAB_SPOOF ? Formatting.GREEN : Formatting.RED))
+                        .append("."));
+                return Command.SINGLE_SUCCESS;
+            }));
+
             // /spoofnew [namePrefix] [keepSkin]
             dispatcher.register(literal("spoofnew")
                     .then(argument("namePrefix", StringArgumentType.string())
@@ -121,23 +133,48 @@ public class SpooferClient implements ClientModInitializer {
             // /whospoof [target]
             dispatcher.register(literal("whospoof")
                     .then(argument("target", StringArgumentType.string())
-                            .suggests((ctx, builder) -> CommandSource.suggestMatching(SpooferManager.currentlySpoofed.keySet(), builder))
+                            .suggests((ctx, builder) -> CommandSource.suggestMatching(() -> {
+                                Collection<String> spoofedRealNames = SpooferManager.currentlySpoofed.keySet().stream().toList();
+                                Collection<String> spoofedNames = SpooferManager.currentlySpoofed.values().stream()
+                                        .map(Pair::getLeft)
+                                        .toList();
+                                return Stream.concat(spoofedNames.stream(), spoofedRealNames.stream()).iterator();
+                            }, builder))
                             .executes(ctx -> {
+                                boolean wasEnabled = SpooferManager.ENABLE_CHAT_SPOOF;
+                                if (wasEnabled)
+                                    SpooferManager.ENABLE_CHAT_SPOOF = false;
                                 String target = StringArgumentType.getString(ctx, "target");
-                                Pair<String, Boolean> spoofEntry = SpooferManager.currentlySpoofed.get(target);
-                                if (spoofEntry == null) {
-                                    ctx.getSource().sendFeedback(Text.literal(target + " is not spoofed"));
+                                String spoofedName = SpooferManager.getSpoofedName(target);
+                                if (spoofedName == null) {
+                                    String ogName = SpooferManager.getOriginalName(target);
+                                    if (ogName != null) {
+                                        if (SpooferManager.currentlySpoofed.get(ogName) == null) {
+                                            ctx.getSource().sendError(Text.literal(ogName + " is not spoofed/not in your server"));
+                                        } else {
+                                            ctx.getSource().sendFeedback(Text.literal(ogName + " is spoofed as " + SpooferManager.currentlySpoofed.get(ogName).getLeft()));
+                                        }
+                                        return Command.SINGLE_SUCCESS;
+                                    }
+                                    ctx.getSource().sendError(Text.literal(target + " is not spoofed"));
                                 } else {
-                                    ctx.getSource().sendFeedback(Text.literal(target + " is spoofed as " + spoofEntry.getLeft()));
+                                    ctx.getSource().sendFeedback(Text.literal(target + " is spoofed as " + spoofedName));
                                 }
+                                if (wasEnabled)
+                                    SpooferManager.ENABLE_CHAT_SPOOF = true;
                                 return Command.SINGLE_SUCCESS;
                             })
                     )
                     .executes(ctx -> {
+                        boolean wasEnabled = SpooferManager.ENABLE_CHAT_SPOOF;
+                        if (wasEnabled)
+                            SpooferManager.ENABLE_CHAT_SPOOF = false;
                         ctx.getSource().sendFeedback(Text.literal("Currently spoofed players:"));
-                        SpooferManager.currentlySpoofed.forEach((target, spoofEntry) -> {
-                            ctx.getSource().sendFeedback(Text.literal(target + " -> " + spoofEntry.getLeft()));
+                        SpooferManager.currentlySpoofed.forEach((realName, spoofEntry) -> {
+                            ctx.getSource().sendFeedback(Text.literal(realName + " -> " + spoofEntry.getLeft()));
                         });
+                        if (wasEnabled)
+                            SpooferManager.ENABLE_CHAT_SPOOF = true;
                         return Command.SINGLE_SUCCESS;
                     }));
         }));

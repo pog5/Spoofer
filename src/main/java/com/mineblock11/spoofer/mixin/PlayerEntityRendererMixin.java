@@ -4,6 +4,7 @@ import com.mineblock11.spoofer.SkinManager;
 import com.mineblock11.spoofer.SpooferManager;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.entity.EntityRendererFactory;
 import net.minecraft.client.render.entity.PlayerEntityRenderer;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.text.Text;
@@ -16,8 +17,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-
-import java.util.Map;
 
 import static com.mineblock11.spoofer.SpooferManager.TEXTURE_CACHE;
 import static com.mineblock11.spoofer.SpooferManager.currentlySpoofed;
@@ -53,11 +52,11 @@ public class PlayerEntityRendererMixin {
     }
 
     @Unique
-    private AbstractClientPlayerEntity currentEntity; // More descriptive name
+    private static AbstractClientPlayerEntity currentEntity; // More descriptive name
 
     @Inject(method = "renderLabelIfPresent(Lnet/minecraft/client/network/AbstractClientPlayerEntity;Lnet/minecraft/text/Text;Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;IF)V", at = @At("HEAD"))
     public void storeEntityForLabel(AbstractClientPlayerEntity abstractClientPlayerEntity, Text text, MatrixStack matrixStack, VertexConsumerProvider vertexConsumerProvider, int i, float f, CallbackInfo ci) {
-        this.currentEntity = abstractClientPlayerEntity;
+        currentEntity = abstractClientPlayerEntity;
     }
 
     @ModifyVariable(method = "renderLabelIfPresent(Lnet/minecraft/client/network/AbstractClientPlayerEntity;Lnet/minecraft/text/Text;Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;IF)V", ordinal = 0, at = @At("HEAD"), argsOnly = true)
@@ -75,5 +74,22 @@ public class PlayerEntityRendererMixin {
         }
 
         return text;
+    }
+
+    @Inject(method = "Lnet/minecraft/client/render/entity/PlayerEntityRenderer;<init>(Lnet/minecraft/client/render/entity/EntityRendererFactory$Context;Z)V", at = @At("HEAD"))
+    private static void Spoofer$modifyIsSkinSlim(EntityRendererFactory.Context ctx, boolean slim, CallbackInfo ci) {
+        if (currentEntity == null) {
+            return isSlim;
+        }
+
+        String playerName = currentEntity.getGameProfile().getName();
+        Pair<String, Boolean> spoofEntry = SpooferManager.currentlySpoofed.get(playerName);
+        String spoofedUsername = spoofEntry != null ? spoofEntry.getLeft() : null;
+
+        if (spoofedUsername != null) {
+            return SkinManager.isSkinSlim(spoofedUsername);
+        }
+
+        return spoofEntry != null && !spoofEntry.getRight(); // getRight - KeepSkin
     }
 }

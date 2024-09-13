@@ -21,7 +21,8 @@ public class SpooferManager implements ModInitializer {
     // TARGET, <SPOOF USERNAME, KEEP SKIN>
     public static final HashMap<String, Pair<String, Boolean>> currentlySpoofed = new HashMap<>();
     public static final HashMap<String, Identifier> TEXTURE_CACHE = new HashMap<>();
-    public static boolean ENABLE_CHAT_SPOOF = false;
+    public static boolean ENABLE_CHAT_SPOOF = true;
+    public static boolean ENABLE_TAB_SPOOF = false;
     public static Pair<Boolean, String> SPOOF_NEW_PLAYERS = new Pair<>(false, ""); // keepSkin, prefix
     public static Collection<String> PLAYER_LIST = Collections.emptyList();
     public static HashSet<String> AUTOSPOOF_SEEN_PLAYERS = HashSet.newHashSet(20);
@@ -57,6 +58,22 @@ public class SpooferManager implements ModInitializer {
                 .collect(Collectors.toList());
     }
 
+    public static String getSpoofedName(String originalName) {
+        Pair<String, Boolean> spoofEntry = currentlySpoofed.get(originalName);
+        if (spoofEntry == null) {
+            return null;
+        }
+        return spoofEntry.getLeft();
+    }
+
+    public static String getOriginalName(String spoofedName) {
+        for (var entry : currentlySpoofed.entrySet()) {
+            if (entry.getValue().getLeft().equals(spoofedName)) {
+                return entry.getKey();
+            }
+        }
+        return spoofedName;
+    }
 
 //    public static boolean isValidUsername(String username) {
 //        final Pattern usernamePattern = Pattern.compile("^\\w{3,16}$");

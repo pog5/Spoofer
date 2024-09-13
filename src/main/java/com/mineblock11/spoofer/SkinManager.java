@@ -163,4 +163,19 @@ public class SkinManager {
         }
         return null; // Or throw an exception if texture not found
     }
+
+    public static boolean isSkinSlim(String username) {
+        try {
+            String uuid = getUUID(username);
+            String sessionInfo = getHTML("https://sessionserver.mojang.com/session/minecraft/profile/" + uuid);
+            String textureUrl = getTextureURL(sessionInfo);
+            URI uri = new URI(textureUrl);
+            URL url = uri.toURL();
+            BufferedImage img = ImageIO.read(url);
+            return img.getHeight() == 32;
+        } catch (Exception e) {
+            System.err.println("[SPOOFER]: Error loading skin for " + username);
+            return false;
+        }
+    }
 }
