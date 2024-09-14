@@ -30,7 +30,7 @@ import static com.mineblock11.spoofer.SpooferManager.currentlySpoofed;
 public class PlayerEntityRendererMixin {
 
     @Inject(method = "getTexture(Lnet/minecraft/client/network/AbstractClientPlayerEntity;)Lnet/minecraft/util/Identifier;", cancellable = true, at = @At("TAIL"))
-    public void getTexture(AbstractClientPlayerEntity playerEntity, CallbackInfoReturnable<Identifier> cir) {
+    public void Spoofer$getTexture(AbstractClientPlayerEntity playerEntity, CallbackInfoReturnable<Identifier> cir) {
         String playerName = playerEntity.getGameProfile().getName();
         Pair<String, Boolean> spoofEntry = currentlySpoofed.get(playerName);
 
@@ -60,12 +60,12 @@ public class PlayerEntityRendererMixin {
     private static AbstractClientPlayerEntity currentEntity; // More descriptive name
 
     @Inject(method = "renderLabelIfPresent(Lnet/minecraft/client/network/AbstractClientPlayerEntity;Lnet/minecraft/text/Text;Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;IF)V", at = @At("HEAD"))
-    public void storeEntityForLabel(AbstractClientPlayerEntity abstractClientPlayerEntity, Text text, MatrixStack matrixStack, VertexConsumerProvider vertexConsumerProvider, int i, float f, CallbackInfo ci) {
+    public void Spoofer$storeEntityForLabel(AbstractClientPlayerEntity abstractClientPlayerEntity, Text text, MatrixStack matrixStack, VertexConsumerProvider vertexConsumerProvider, int i, float f, CallbackInfo ci) {
         currentEntity = abstractClientPlayerEntity;
     }
 
     @ModifyVariable(method = "renderLabelIfPresent(Lnet/minecraft/client/network/AbstractClientPlayerEntity;Lnet/minecraft/text/Text;Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;IF)V", ordinal = 0, at = @At("HEAD"), argsOnly = true)
-    public Text modifyNameLabel(Text text) {
+    public Text Spoofer$modifyNameLabel(Text text) {
         if (currentEntity == null) {
             return text; // Handle potential null pointer
         }
@@ -81,50 +81,20 @@ public class PlayerEntityRendererMixin {
         return text;
     }
 
-    @ModifyArg(method = "<init>(Lnet/minecraft/client/render/entity/EntityRendererFactory$Context;Z)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/entity/LivingEntityRenderer;<init>(Lnet/minecraft/client/render/entity/EntityRendererFactory$Context;Lnet/minecraft/client/render/entity/model/EntityModel;F)V"), index = 1)
+    @ModifyVariable(method = "<init>", at = @At(value = "NEW", target = "(Lnet/minecraft/client/model/ModelPart;Z)Lnet/minecraft/client/render/entity/model/PlayerEntityModel;"), argsOnly = true)
+    private static boolean Spoofer$modifySlimModel(boolean isSlim) {
+        if (currentEntity == null) {
+            return isSlim;
+        }
 
-//    @Inject(method = "Lnet/minecraft/client/render/entity/PlayerEntityRenderer;<init>(Lnet/minecraft/client/render/entity/EntityRendererFactory$Context;Z)V", at = @At("HEAD"))
-//    private static void Spoofer$modifyIsSkinSlim(EntityRendererFactory.Context ctx, boolean slim, CallbackInfo ci) {
-//        if (currentEntity == null) {
-//            return;
-//        }
-//
-//        String playerName = currentEntity.getGameProfile().getName();
-//        Pair<String, Boolean> spoofEntry = SpooferManager.currentlySpoofed.get(playerName);
-//        String spoofedUsername = spoofEntry != null ? spoofEntry.getLeft() : null;
-//
-//        if (spoofedUsername != null) {
-//            slim = SkinManager.isSkinSlim(spoofedUsername);
-//        }
-//
-//        slim = spoofEntry != null && !spoofEntry.getRight(); // getRight - KeepSkin
-//    }
-//    @ModifyArg(method = "<init>(Lnet/minecraft/client/render/entity/EntityRendererFactory$Context;Z)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/entity/LivingEntityRenderer;<init>(Lnet/minecraft/client/render/entity/EntityRendererFactory$Context;Lnet/minecraft/client/render/entity/model/EntityModel;F)V"), index = 1, )
-//    private static M Spoofer$blegh(M model){
-//        return new PlayerEntityModel<>(ctx.getPart(slim ? EntityModelLayers.PLAYER_SLIM : EntityModelLayers.PLAYER), slim);
-//    }
-/**
- * @author Tektonikal
- * @reason BECAUSE I SAID SO !!!!!
- */
-@Overwrite
-    public PlayerEntityRenderer(EntityRendererFactory.Context ctx, boolean slim) {
-        super(ctx, new PlayerEntityModel<>(ctx.getPart(slim ? EntityModelLayers.PLAYER_SLIM : EntityModelLayers.PLAYER), slim), 0.5F);
-        this.addFeature(
-                new ArmorFeatureRenderer<>(
-                        this,
-                        new ArmorEntityModel(ctx.getPart(slim ? EntityModelLayers.PLAYER_SLIM_INNER_ARMOR : EntityModelLayers.PLAYER_INNER_ARMOR)),
-                        new ArmorEntityModel(ctx.getPart(slim ? EntityModelLayers.PLAYER_SLIM_OUTER_ARMOR : EntityModelLayers.PLAYER_OUTER_ARMOR)),
-                        ctx.getModelManager()
-                )
-        );
-        this.addFeature(new PlayerHeldItemFeatureRenderer<>(this, ctx.getHeldItemRenderer()));
-        this.addFeature(new StuckArrowsFeatureRenderer<>(ctx, this));
-        this.addFeature(new Deadmau5FeatureRenderer(this));
-        this.addFeature(new CapeFeatureRenderer(this));
-        this.addFeature(new HeadFeatureRenderer<>(this, ctx.getModelLoader(), ctx.getHeldItemRenderer()));
-        this.addFeature(new ElytraFeatureRenderer<>(this, ctx.getModelLoader()));
-        this.addFeature(new ShoulderParrotFeatureRenderer<>(this, ctx.getModelLoader()));
-        this.addFeature(new TridentRiptideFeatureRenderer<>(this, ctx.getModelLoader()));
-        this.addFeature(new StuckStingersFeatureRenderer<>(this));
+        String playerName = currentEntity.getGameProfile().getName();
+        Pair<String, Boolean> spoofEntry = SpooferManager.currentlySpoofed.get(playerName);
+        String spoofedName = spoofEntry != null ? spoofEntry.getLeft() : null;
+        if (spoofedName == null) {
+            return isSlim;
+        }
+
+        return SkinManager.isSkinSlim(spoofedName);
     }
+
+}

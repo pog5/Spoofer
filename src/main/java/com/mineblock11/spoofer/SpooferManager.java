@@ -27,6 +27,7 @@ public class SpooferManager implements ModInitializer {
     public static Pair<Boolean, String> SPOOF_NEW_PLAYERS = new Pair<>(false, ""); // keepSkin, prefix
     public static Collection<String> PLAYER_LIST = Collections.emptyList();
     public static HashSet<String> AUTOSPOOF_SEEN_PLAYERS = HashSet.newHashSet(20);
+    public static HashSet<Pair<String, Boolean>> SPOOF_NEXT_JOIN = new HashSet<>();
 
     public static Text replaceStringInTextKeepFormatting(Text text, String toReplace, String replaceWith) {
         MutableText newText = literal("");
