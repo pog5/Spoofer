@@ -68,7 +68,8 @@ public class SpooferClient implements ClientModInitializer {
             dispatcher.register(literal("unspoof")
                     .executes(ctx -> {
                         SpooferManager.currentlySpoofed.clear();
-                        ctx.getSource().sendFeedback(Text.literal("Unspoofed everyone").formatted(Formatting.GRAY));
+                        if (SpooferManager.ENABLE_SPOOF_FEEDBACK)
+                            ctx.getSource().sendFeedback(Text.literal("Unspoofed everyone").formatted(Formatting.GRAY));
                         SpooferManager.SPOOF_NEW_PLAYERS.setLeft(false);
                         return Command.SINGLE_SUCCESS;
                     })
@@ -77,7 +78,8 @@ public class SpooferClient implements ClientModInitializer {
                             .executes(ctx -> {
                                 String target = StringArgumentType.getString(ctx, "target");
                                 SpooferManager.currentlySpoofed.remove(target);
-                                ctx.getSource().sendFeedback(Text.literal("Unspoofed ").append(Text.literal(target).formatted(Formatting.GRAY)));
+                                if (SpooferManager.ENABLE_SPOOF_FEEDBACK)
+                                    ctx.getSource().sendFeedback(Text.literal("Unspoofed ").append(Text.literal(target).formatted(Formatting.GRAY)));
                                 return Command.SINGLE_SUCCESS;
                             }))
             );
@@ -85,7 +87,8 @@ public class SpooferClient implements ClientModInitializer {
             // /togglechatspoof
             dispatcher.register(literal("togglechatspoof").executes(ctx -> {
                 SpooferManager.ENABLE_CHAT_SPOOF = !SpooferManager.ENABLE_CHAT_SPOOF;
-                ctx.getSource().sendFeedback(Text.literal("Chat Spoof is now ")
+                if (SpooferManager.ENABLE_SPOOF_FEEDBACK)
+                    ctx.getSource().sendFeedback(Text.literal("Chat Spoof is now ")
                         .append(Text.literal(SpooferManager.ENABLE_CHAT_SPOOF ? "enabled" : "disabled")
                                 .formatted(SpooferManager.ENABLE_CHAT_SPOOF ? Formatting.GREEN : Formatting.RED))
                         .append("."));
@@ -95,9 +98,21 @@ public class SpooferClient implements ClientModInitializer {
             // /toggletabspoof
             dispatcher.register(literal("toggletabspoof").executes(ctx -> {
                 SpooferManager.ENABLE_TAB_SPOOF = !SpooferManager.ENABLE_TAB_SPOOF;
-                ctx.getSource().sendFeedback(Text.literal("TAB Spoof is now ")
+                if (SpooferManager.ENABLE_SPOOF_FEEDBACK)
+                    ctx.getSource().sendFeedback(Text.literal("TAB Spoof is now ")
                         .append(Text.literal(SpooferManager.ENABLE_TAB_SPOOF ? "enabled" : "disabled")
                                 .formatted(SpooferManager.ENABLE_TAB_SPOOF ? Formatting.GREEN : Formatting.RED))
+                        .append("."));
+                return Command.SINGLE_SUCCESS;
+            }));
+
+            // /togglespooffeedback
+            dispatcher.register(literal("togglespooffeedback").executes(ctx -> {
+                SpooferManager.ENABLE_SPOOF_FEEDBACK = !SpooferManager.ENABLE_SPOOF_FEEDBACK;
+                if (SpooferManager.ENABLE_SPOOF_FEEDBACK)
+                    ctx.getSource().sendFeedback(Text.literal("Spoof feedback is now ")
+                        .append(Text.literal(SpooferManager.ENABLE_SPOOF_FEEDBACK ? "enabled" : "disabled")
+                                .formatted(SpooferManager.ENABLE_SPOOF_FEEDBACK ? Formatting.GREEN : Formatting.RED))
                         .append("."));
                 return Command.SINGLE_SUCCESS;
             }));
@@ -150,15 +165,19 @@ public class SpooferClient implements ClientModInitializer {
                                     String ogName = SpooferManager.getOriginalName(target);
                                     if (ogName != null) {
                                         if (SpooferManager.currentlySpoofed.get(ogName) == null) {
-                                            ctx.getSource().sendError(Text.literal(ogName + " is not spoofed/not in your server"));
+                                            if (SpooferManager.ENABLE_SPOOF_FEEDBACK)
+                                                ctx.getSource().sendError(Text.literal(ogName + " is not spoofed/not in your server"));
                                         } else {
-                                            ctx.getSource().sendFeedback(Text.literal(ogName + " is spoofed as " + SpooferManager.currentlySpoofed.get(ogName).getLeft()));
+                                            if (SpooferManager.ENABLE_SPOOF_FEEDBACK)
+                                                ctx.getSource().sendFeedback(Text.literal(ogName + " is spoofed as " + SpooferManager.currentlySpoofed.get(ogName).getLeft()));
                                         }
                                         return Command.SINGLE_SUCCESS;
                                     }
-                                    ctx.getSource().sendError(Text.literal(target + " is not spoofed"));
+                                    if (SpooferManager.ENABLE_SPOOF_FEEDBACK)
+                                        ctx.getSource().sendError(Text.literal(target + " is not spoofed"));
                                 } else {
-                                    ctx.getSource().sendFeedback(Text.literal(target + " is spoofed as " + spoofedName));
+                                    if (SpooferManager.ENABLE_SPOOF_FEEDBACK)
+                                        ctx.getSource().sendFeedback(Text.literal(target + " is spoofed as " + spoofedName));
                                 }
                                 if (wasEnabled)
                                     SpooferManager.ENABLE_CHAT_SPOOF = true;
@@ -169,9 +188,12 @@ public class SpooferClient implements ClientModInitializer {
                         boolean wasEnabled = SpooferManager.ENABLE_CHAT_SPOOF;
                         if (wasEnabled)
                             SpooferManager.ENABLE_CHAT_SPOOF = false;
-                        ctx.getSource().sendFeedback(Text.literal("Currently spoofed players:"));
+
+                        if (SpooferManager.ENABLE_SPOOF_FEEDBACK)
+                            ctx.getSource().sendFeedback(Text.literal("Currently spoofed players:"));
                         SpooferManager.currentlySpoofed.forEach((realName, spoofEntry) -> {
-                            ctx.getSource().sendFeedback(Text.literal(realName + " -> " + spoofEntry.getLeft()));
+                            if (SpooferManager.ENABLE_SPOOF_FEEDBACK)
+                                ctx.getSource().sendFeedback(Text.literal(realName + " -> " + spoofEntry.getLeft()));
                         });
                         if (wasEnabled)
                             SpooferManager.ENABLE_CHAT_SPOOF = true;
@@ -187,13 +209,16 @@ public class SpooferClient implements ClientModInitializer {
             for (int i = 0; i < playerCount; i++) {
                 SpooferManager.currentlySpoofed.put((String) SpooferManager.getOnlinePlayerNames().toArray()[i], new Pair<>(username + i, keepSkin));
             }
-            ctx.getSource().sendFeedback(Text.literal("Spoofed all online players"));
+            if (SpooferManager.ENABLE_SPOOF_FEEDBACK)
+                ctx.getSource().sendFeedback(Text.literal("Spoofed all online players"));
         } else if (SpooferManager.currentlySpoofed.containsKey(target)) {
-            ctx.getSource().sendError(Text.literal("That player is already spoofed! Use /unspoof first."));
+            if (SpooferManager.ENABLE_SPOOF_FEEDBACK)
+                ctx.getSource().sendError(Text.literal("That player is already spoofed! Use /unspoof first."));
             return 1; // Indicate failure
         } else {
             SpooferManager.currentlySpoofed.put(target, new Pair<>(username, keepSkin));
-            ctx.getSource().sendFeedback(Text.literal("Spoofed ")
+            if (SpooferManager.ENABLE_SPOOF_FEEDBACK)
+                ctx.getSource().sendFeedback(Text.literal("Spoofed ")
                     .append(Text.literal(target).formatted(Formatting.GRAY))
                     .append(" as ")
                     .append(Text.literal(username).formatted(Formatting.GRAY)));
@@ -207,7 +232,8 @@ public class SpooferClient implements ClientModInitializer {
         SpooferManager.SPOOF_NEW_PLAYERS.setRight(namePrefix);
         SpooferManager.AUTOSPOOF_SEEN_PLAYERS.clear();
         String stateText = SpooferManager.SPOOF_NEW_PLAYERS.getLeft() ? "ENABLED" : "DISABLED";
-        ctx.getSource().sendFeedback(Text.literal("Spoofing new joins as \"" + namePrefix + "\": ")
+        if (SpooferManager.ENABLE_SPOOF_FEEDBACK)
+            ctx.getSource().sendFeedback(Text.literal("Spoofing new joins as \"" + namePrefix + "\": ")
                 .append(Text.literal(stateText).formatted(SpooferManager.SPOOF_NEW_PLAYERS.getLeft() ? Formatting.GREEN : Formatting.RED))
                 .append(Text.literal(" (" + (keepSkin ? "" : "not ") + "keeping skins)").formatted(Formatting.GRAY)));
         return Command.SINGLE_SUCCESS;

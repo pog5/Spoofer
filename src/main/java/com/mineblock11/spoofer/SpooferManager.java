@@ -21,6 +21,7 @@ public class SpooferManager implements ModInitializer {
     // TARGET, <SPOOF USERNAME, KEEP SKIN>
     public static final HashMap<String, Pair<String, Boolean>> currentlySpoofed = new HashMap<>();
     public static final HashMap<String, Identifier> TEXTURE_CACHE = new HashMap<>();
+    public static boolean ENABLE_SPOOF_FEEDBACK = true;
     public static boolean ENABLE_CHAT_SPOOF = true;
     public static boolean ENABLE_TAB_SPOOF = false;
     public static Pair<Boolean, String> SPOOF_NEW_PLAYERS = new Pair<>(false, ""); // keepSkin, prefix

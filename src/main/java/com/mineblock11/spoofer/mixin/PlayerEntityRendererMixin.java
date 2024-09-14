@@ -5,7 +5,12 @@ import com.mineblock11.spoofer.SpooferManager;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.entity.EntityRendererFactory;
+import net.minecraft.client.render.entity.LivingEntityRenderer;
 import net.minecraft.client.render.entity.PlayerEntityRenderer;
+import net.minecraft.client.render.entity.feature.*;
+import net.minecraft.client.render.entity.model.ArmorEntityModel;
+import net.minecraft.client.render.entity.model.EntityModelLayers;
+import net.minecraft.client.render.entity.model.PlayerEntityModel;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
@@ -76,20 +81,50 @@ public class PlayerEntityRendererMixin {
         return text;
     }
 
-    @Inject(method = "Lnet/minecraft/client/render/entity/PlayerEntityRenderer;<init>(Lnet/minecraft/client/render/entity/EntityRendererFactory$Context;Z)V", at = @At("HEAD"))
-    private static void Spoofer$modifyIsSkinSlim(EntityRendererFactory.Context ctx, boolean slim, CallbackInfo ci) {
-        if (currentEntity == null) {
-            return isSlim;
-        }
+    @ModifyArg(method = "<init>(Lnet/minecraft/client/render/entity/EntityRendererFactory$Context;Z)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/entity/LivingEntityRenderer;<init>(Lnet/minecraft/client/render/entity/EntityRendererFactory$Context;Lnet/minecraft/client/render/entity/model/EntityModel;F)V"), index = 1)
 
-        String playerName = currentEntity.getGameProfile().getName();
-        Pair<String, Boolean> spoofEntry = SpooferManager.currentlySpoofed.get(playerName);
-        String spoofedUsername = spoofEntry != null ? spoofEntry.getLeft() : null;
-
-        if (spoofedUsername != null) {
-            return SkinManager.isSkinSlim(spoofedUsername);
-        }
-
-        return spoofEntry != null && !spoofEntry.getRight(); // getRight - KeepSkin
+//    @Inject(method = "Lnet/minecraft/client/render/entity/PlayerEntityRenderer;<init>(Lnet/minecraft/client/render/entity/EntityRendererFactory$Context;Z)V", at = @At("HEAD"))
+//    private static void Spoofer$modifyIsSkinSlim(EntityRendererFactory.Context ctx, boolean slim, CallbackInfo ci) {
+//        if (currentEntity == null) {
+//            return;
+//        }
+//
+//        String playerName = currentEntity.getGameProfile().getName();
+//        Pair<String, Boolean> spoofEntry = SpooferManager.currentlySpoofed.get(playerName);
+//        String spoofedUsername = spoofEntry != null ? spoofEntry.getLeft() : null;
+//
+//        if (spoofedUsername != null) {
+//            slim = SkinManager.isSkinSlim(spoofedUsername);
+//        }
+//
+//        slim = spoofEntry != null && !spoofEntry.getRight(); // getRight - KeepSkin
+//    }
+//    @ModifyArg(method = "<init>(Lnet/minecraft/client/render/entity/EntityRendererFactory$Context;Z)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/entity/LivingEntityRenderer;<init>(Lnet/minecraft/client/render/entity/EntityRendererFactory$Context;Lnet/minecraft/client/render/entity/model/EntityModel;F)V"), index = 1, )
+//    private static M Spoofer$blegh(M model){
+//        return new PlayerEntityModel<>(ctx.getPart(slim ? EntityModelLayers.PLAYER_SLIM : EntityModelLayers.PLAYER), slim);
+//    }
+/**
+ * @author Tektonikal
+ * @reason BECAUSE I SAID SO !!!!!
+ */
+@Overwrite
+    public PlayerEntityRenderer(EntityRendererFactory.Context ctx, boolean slim) {
+        super(ctx, new PlayerEntityModel<>(ctx.getPart(slim ? EntityModelLayers.PLAYER_SLIM : EntityModelLayers.PLAYER), slim), 0.5F);
+        this.addFeature(
+                new ArmorFeatureRenderer<>(
+                        this,
+                        new ArmorEntityModel(ctx.getPart(slim ? EntityModelLayers.PLAYER_SLIM_INNER_ARMOR : EntityModelLayers.PLAYER_INNER_ARMOR)),
+                        new ArmorEntityModel(ctx.getPart(slim ? EntityModelLayers.PLAYER_SLIM_OUTER_ARMOR : EntityModelLayers.PLAYER_OUTER_ARMOR)),
+                        ctx.getModelManager()
+                )
+        );
+        this.addFeature(new PlayerHeldItemFeatureRenderer<>(this, ctx.getHeldItemRenderer()));
+        this.addFeature(new StuckArrowsFeatureRenderer<>(ctx, this));
+        this.addFeature(new Deadmau5FeatureRenderer(this));
+        this.addFeature(new CapeFeatureRenderer(this));
+        this.addFeature(new HeadFeatureRenderer<>(this, ctx.getModelLoader(), ctx.getHeldItemRenderer()));
+        this.addFeature(new ElytraFeatureRenderer<>(this, ctx.getModelLoader()));
+        this.addFeature(new ShoulderParrotFeatureRenderer<>(this, ctx.getModelLoader()));
+        this.addFeature(new TridentRiptideFeatureRenderer<>(this, ctx.getModelLoader()));
+        this.addFeature(new StuckStingersFeatureRenderer<>(this));
     }
-}
