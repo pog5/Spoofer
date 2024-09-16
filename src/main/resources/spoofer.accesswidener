@@ -1,2 +1,3 @@
 accessWidener    v1    named
 accessible    field    net/minecraft/client/MinecraftClient    authenticationService    Lcom/mojang/authlib/yggdrasil/YggdrasilAuthenticationService;
+accessible field net/minecraft/client/render/entity/LivingEntityRenderer model Lnet/minecraft/client/render/entity/model/EntityModel;

@@ -165,6 +165,11 @@ public class SkinManager {
     }
 
     public static boolean isSkinSlim(String username) {
+        if (SpooferManager.SLIM_CACHE.containsKey(username))
+            return SpooferManager.SLIM_CACHE.get(username);
+//        if (username.isBlank() || !SpooferManager.isValidUsername(username)) {
+//            return false;
+//        }
         try {
             String uuid = getUUID(username);
             String sessionInfo = getHTML("https://sessionserver.mojang.com/session/minecraft/profile/" + uuid);
@@ -172,10 +177,65 @@ public class SkinManager {
             URI uri = new URI(textureUrl);
             URL url = uri.toURL();
             BufferedImage img = ImageIO.read(url);
-            return img.getHeight() == 32;
+//            return img.getHeight() == 32;
+            boolean status =  isSlimSkin(img);
+            SpooferManager.SLIM_CACHE.put(username, status);
+            return status;
         } catch (Exception e) {
             System.err.println("[SPOOFER]: Error loading skin for " + username);
             return false;
         }
+    }
+
+    public static boolean isSkinSlim(URI url) {
+        try {
+            BufferedImage img = ImageIO.read(url.toURL());
+            return isSlimSkin(img);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public static boolean isSlimSkin(BufferedImage skin) {
+        int width = skin.getWidth();
+        int height = skin.getHeight();
+
+        // Verify valid skin dimensions (64x64 or 64x32)
+        if (!((width == 64 && height == 64) || (width == 64 && height == 32))) {
+            System.out.println("Invalid skin dimensions.");
+            return false; // Default to classic model if dimensions are invalid
+        }
+
+        // Coordinates to check for transparency on the outermost arm pixels
+        int[][] coordinatesToCheck = {
+                // Right Arm Main Layer (outermost column)
+                {44, 16}, {44, 17}, {44, 18}, {44, 19}, {44, 20}, {44, 21}, {44, 22}, {44, 23},
+                {44, 24}, {44, 25}, {44, 26}, {44, 27}, {44, 28}, {44, 29}, {44, 30}, {44, 31},
+                // Left Arm Main Layer (outermost column)
+                {36, 48}, {36, 49}, {36, 50}, {36, 51}, {36, 52}, {36, 53}, {36, 54}, {36, 55},
+                {36, 56}, {36, 57}, {36, 58}, {36, 59}, {36, 60}, {36, 61}, {36, 62}, {36, 63}
+                // Similarly, you can add coordinates for the second layers if needed
+        };
+
+        int transparentPixelCount = 0;
+        int totalPixels = coordinatesToCheck.length;
+
+        for (int[] coord : coordinatesToCheck) {
+            int x = coord[0];
+            int y = coord[1];
+            if (x >= width || y >= height) {
+                continue; // Skip if out of bounds
+            }
+            int pixel = skin.getRGB(x, y);
+            int alpha = (pixel >> 24) & 0xff;
+            if (alpha == 0) {
+                transparentPixelCount++;
+            }
+        }
+
+        // Determine if the majority of the outer arm pixels are transparent
+        double transparentRatio = (double) transparentPixelCount / totalPixels;
+        return transparentRatio > 0.9; // Threshold can be adjusted based on requirements
     }
 }

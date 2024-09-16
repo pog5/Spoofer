@@ -12,6 +12,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.Pair;
 
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static net.minecraft.text.Text.literal;
@@ -21,6 +22,7 @@ public class SpooferManager implements ModInitializer {
     // TARGET, <SPOOF USERNAME, KEEP SKIN>
     public static final HashMap<String, Pair<String, Boolean>> currentlySpoofed = new HashMap<>();
     public static final HashMap<String, Identifier> TEXTURE_CACHE = new HashMap<>();
+    public static final HashMap<String, Boolean> SLIM_CACHE = new HashMap<>();
     public static boolean ENABLE_SPOOF_FEEDBACK = true;
     public static boolean ENABLE_CHAT_SPOOF = true;
     public static boolean ENABLE_TAB_SPOOF = false;
@@ -77,12 +79,12 @@ public class SpooferManager implements ModInitializer {
         return spoofedName;
     }
 
-//    public static boolean isValidUsername(String username) {
-//        final Pattern usernamePattern = Pattern.compile("^\\w{3,16}$");
-//        if (username == null || username.isBlank())
-//            return false;
-//        return usernamePattern.matcher(username).matches();
-//    }
+    public static boolean isValidUsername(String username) {
+        final Pattern usernamePattern = Pattern.compile("^\\w{3,16}$");
+        if (username == null || username.isBlank())
+            return false;
+        return usernamePattern.matcher(username).matches();
+    }
 
     @Override
     public void onInitialize() {
