@@ -1,11 +1,11 @@
 package com.mineblock11.spoofer;
 
+import com.mineblock11.spoofer.config.SpooferConfig;
 import com.mojang.authlib.GameProfile;
 import net.fabricmc.api.ModInitializer;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.text.MutableText;
-import net.minecraft.text.StringVisitable;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
@@ -23,15 +23,14 @@ public class SpooferManager implements ModInitializer {
     public static final HashMap<String, Pair<String, Boolean>> currentlySpoofed = new HashMap<>();
     public static final HashMap<String, Identifier> TEXTURE_CACHE = new HashMap<>();
     public static final HashMap<String, Boolean> SLIM_CACHE = new HashMap<>();
-    public static boolean ENABLE_SPOOF_FEEDBACK = true;
-    public static boolean ENABLE_CHAT_SPOOF = true;
-    public static boolean ENABLE_TAB_SPOOF = false;
-    public static Pair<Boolean, String> SPOOF_NEW_PLAYERS = new Pair<>(false, ""); // keepSkin, prefix
+
     public static Collection<String> PLAYER_LIST = Collections.emptyList();
     public static HashSet<String> AUTOSPOOF_SEEN_PLAYERS = HashSet.newHashSet(20);
     public static HashSet<Pair<String, Boolean>> SPOOF_NEXT_JOIN = new HashSet<>();
 
     public static Text replaceStringInTextKeepFormatting(Text text, String toReplace, String replaceWith) {
+        if (text.toString().equals(toReplace))
+            return literal(replaceWith).setStyle(text.getStyle());
         MutableText newText = literal("");
         text.visit((style, string) -> {
             if (string.contains(toReplace)) {
@@ -50,7 +49,6 @@ public class SpooferManager implements ModInitializer {
     public static Collection<String> getOnlinePlayerNames() {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.player == null || client.getNetworkHandler() == null) {
-            SPOOF_NEW_PLAYERS = new Pair<>(false, "");
             AUTOSPOOF_SEEN_PLAYERS.clear();
             return Collections.emptyList(); // Not in a world yet
         }
@@ -89,4 +87,5 @@ public class SpooferManager implements ModInitializer {
     @Override
     public void onInitialize() {
     }
+
 }

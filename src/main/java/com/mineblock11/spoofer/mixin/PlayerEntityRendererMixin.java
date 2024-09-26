@@ -2,6 +2,8 @@ package com.mineblock11.spoofer.mixin;
 
 import com.mineblock11.spoofer.SkinManager;
 import com.mineblock11.spoofer.SpooferManager;
+import com.mineblock11.spoofer.config.SpooferConfig;
+import com.mineblock11.spoofer.types.ModelSpoofState;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.entity.EntityRendererFactory;
@@ -34,7 +36,9 @@ public abstract class PlayerEntityRendererMixin extends LivingEntityRenderer<Abs
     private static AbstractClientPlayerEntity currentEntity; // More descriptive name
     private EntityRendererFactory.Context rendererContext;
 
-    public PlayerEntityRendererMixin(EntityRendererFactory.Context ctx, PlayerEntityModel<AbstractClientPlayerEntity> model, float shadowRadius) {
+    public PlayerEntityRendererMixin(EntityRendererFactory.Context ctx,
+                                     PlayerEntityModel<AbstractClientPlayerEntity> model,
+                                     float shadowRadius) {
         super(ctx, model, shadowRadius);
     }
 
@@ -43,72 +47,45 @@ public abstract class PlayerEntityRendererMixin extends LivingEntityRenderer<Abs
         this.rendererContext = ctx;
     }
 
-    @Inject(method = "<init>", at = @At("RETURN"))
-    private void Spoofer$onInit(EntityRendererFactory.Context ctx, boolean slim, CallbackInfo ci) {
-//        if (true) {
-//            this.model = new PlayerEntityModel<>(ctx.getPart(!slim ? EntityModelLayers.PLAYER_SLIM : EntityModelLayers.PLAYER), !slim);
-//            return;
-//        }
-//        System.out.println("pentity oninit");
-//        if (currentEntity == null) {
-//            System.out.println("curr ent is null");
-//        } else {
-//            System.out.println("curr ent is not null");
-//        }
-//        boolean shouldSlim;
-//        String renderedName = currentEntity.getGameProfile().getName();
-//        Pair<String, Boolean> spoofEntry = currentlySpoofed.get(renderedName);
-//        if (spoofEntry != null) {
-//            if (spoofEntry.getRight())
-//                return;
-//            String spoofedName = spoofEntry.getLeft();
-//            shouldSlim = SkinManager.isSkinSlim(spoofedName);
-//        } else {
-//            shouldSlim = SkinManager.isSkinSlim(renderedName);
-//        }
-//        this.model = new PlayerEntityModel<>(ctx.getPart(EntityModelLayers.PLAYER_SLIM), true);
-//        if (this.currentEntity != null && SpooferManager.currentlySpoofed.containsKey(currentEntity.getGameProfile().getName()) &&
-//                !SpooferManager.currentlySpoofed.get(currentEntity.getGameProfile().getName()).getRight()) {
-//            boolean isSpoofedSkinSlim = SkinManager.isSkinSlim(SpooferManager.currentlySpoofed.get(currentEntity.getGameProfile().getName()).getLeft());
-//            System.out.println(isSpoofedSkinSlim);
-//            this.model = new PlayerEntityModel<>(ctx.getPart(isSpoofedSkinSlim ? EntityModelLayers.PLAYER_SLIM : EntityModelLayers.PLAYER), isSpoofedSkinSlim);
-//        }
-    }
-
-    //    @Inject(method = "setModelPose", at = @At("HEAD"))
-//    private void Spoofer$modifyModelPose(AbstractClientPlayerEntity player, CallbackInfo ci) {
-//        String originalName = player.getName().getString();
-//        Pair<String, Boolean> spoofData = SpooferManager.currentlySpoofed.get(originalName);
-//
-//        if (spoofData != null && !spoofData.getRight()) { // Check if spoofed and keepSkin is false
-//            boolean isSpoofedSkinSlim = SkinManager.isSkinSlim(spoofData.getLeft());
-//            this.model = new PlayerEntityModel<>(this.getPart(isSpoofedSkinSlim ?
-//                    EntityModelLayers.PLAYER_SLIM : EntityModelLayers.PLAYER), isSpoofedSkinSlim);
-//        }
-//    }
-//
     @Inject(method = "render(Lnet/minecraft/client/network/AbstractClientPlayerEntity;FFLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;I)V",
             at = @At("HEAD"))
     public void render(AbstractClientPlayerEntity player, float f, float g, MatrixStack matrixStack, VertexConsumerProvider vertexConsumerProvider, int i, CallbackInfo ci)  {
-        if (player.getGameProfile().getName().startsWith("CIT-")) {
+        String realName = player.getGameProfile().getName();
+        boolean shouldSpoofThisPlayer = SpooferManager.currentlySpoofed.containsKey(realName);
+        boolean keepSkin = true;
+        if (SpooferManager.currentlySpoofed.containsKey(realName))
+            keepSkin = SpooferManager.currentlySpoofed.get(realName).getRight();
+        boolean isPlayerNpc = realName.startsWith("CIT-");
+
+        if (isPlayerNpc || SpooferConfig.getScope().MODEL_SPOOF == ModelSpoofState.OFF) {
             return;
         }
-        if (SpooferManager.currentlySpoofed.containsKey(player.getGameProfile().getName()) && // Player is spoofed
-                !SpooferManager.currentlySpoofed.get(player.getGameProfile().getName()).getRight()) { // and they aren't keeping skin
 
-            boolean isSpoofedSkinSlim = SkinManager.isSkinSlim(SpooferManager.currentlySpoofed.get(player.getGameProfile().getName()).getLeft());
+        if (shouldSpoofThisPlayer) {
+            boolean isSpoofedSkinSlim;
+            if (SpooferConfig.getScope().MODEL_SPOOF == ModelSpoofState.STRETCH) {
+                isSpoofedSkinSlim = false;
+            } else {
+                Pair<String, Boolean> spoofEntry = currentlySpoofed.get(realName);
+                String spoofedName = spoofEntry != null ? spoofEntry.getLeft() : null;
+                if (spoofedName == null) {
+                    return;
+                }
+                isSpoofedSkinSlim = SkinManager.isSkinSlim(spoofedName);
+            }
 
             // Create and set the appropriate model
             this.model = new PlayerEntityModel<>(this.rendererContext.getPart(isSpoofedSkinSlim ? EntityModelLayers.PLAYER_SLIM : EntityModelLayers.PLAYER), isSpoofedSkinSlim);
         } else {
-//            boolean isSlim = SkinManager.isSkinSlim(player.getName().getString());
-            boolean isSlim = true;
+            boolean isSlim = SkinManager.isSkinSlim(player.getName().getString());
+
             this.model = new PlayerEntityModel<>(this.rendererContext.getPart(isSlim ? EntityModelLayers.PLAYER_SLIM : EntityModelLayers.PLAYER), isSlim);
         }
     }
 
     @Inject(method = "getTexture(Lnet/minecraft/client/network/AbstractClientPlayerEntity;)Lnet/minecraft/util/Identifier;", cancellable = true, at = @At("TAIL"))
     public void Spoofer$getTexture(AbstractClientPlayerEntity playerEntity, CallbackInfoReturnable<Identifier> cir) {
+        if (SpooferConfig.getScope().MODEL_SPOOF == ModelSpoofState.OFF) return;
         String playerName = playerEntity.getGameProfile().getName();
         Pair<String, Boolean> spoofEntry = currentlySpoofed.get(playerName);
 

@@ -1,6 +1,7 @@
 package com.mineblock11.spoofer.mixin;
 
 import com.mineblock11.spoofer.SpooferManager;
+import com.mineblock11.spoofer.config.SpooferConfig;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.client.gui.hud.PlayerListHud;
 import net.minecraft.client.network.PlayerListEntry;
@@ -21,7 +22,7 @@ public class PlayerListMixin {
 
     @Inject(method = "getDisplayName", at = @At("TAIL"), cancellable = true)
     public void Spoofer$getDisplayName(CallbackInfoReturnable<Text> cir) {
-        if (this.profile.getName().equals("CIT-") || !SpooferManager.ENABLE_TAB_SPOOF) {
+        if (this.profile.getName().equals("CIT-") || !SpooferConfig.getScope().ENABLE_TAB_SPOOF) {
             return;
         }
 

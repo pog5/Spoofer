@@ -20,6 +20,9 @@
     "client": [
       "com.mineblock11.spoofer.client.SpooferClient"
     ],
+    "modmenu": [
+      "com.mineblock11.spoofer.config.SpooferConfigScreen"
+    ],
     "main": [
       "com.mineblock11.spoofer.SpooferManager"
     ]
@@ -30,6 +33,7 @@
   "depends": {
     "fabricloader": ">=0.16.2",
     "fabric": "*",
-    "minecraft": ">=1.21"
+    "minecraft": ">=1.21",
+    "yet_another_config_lib_v3": ">=3.5.0+1.21-fabric"
   }
 }

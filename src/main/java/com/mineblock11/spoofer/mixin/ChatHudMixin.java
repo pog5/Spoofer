@@ -1,6 +1,7 @@
 package com.mineblock11.spoofer.mixin;
 
 import com.mineblock11.spoofer.SpooferManager;
+import com.mineblock11.spoofer.config.SpooferConfig;
 import net.minecraft.client.gui.hud.ChatHud;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
@@ -16,7 +17,7 @@ import java.util.Optional;
 public class ChatHudMixin {
     @ModifyVariable(method = "addMessage(Lnet/minecraft/text/Text;Lnet/minecraft/network/message/MessageSignatureData;Lnet/minecraft/client/gui/hud/MessageIndicator;)V", at = @At("HEAD"), ordinal = 0, argsOnly = true)
     public Text modifyAddMessage(Text text) {
-        if (!SpooferManager.ENABLE_CHAT_SPOOF || text.getString().startsWith("Spoofed")) {
+        if (!SpooferConfig.getScope().ENABLE_CHAT_SPOOF || text.getString().startsWith("Spoofed")) {
             return text;
         }
 

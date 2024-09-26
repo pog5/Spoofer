@@ -1,24 +1,31 @@
 package com.mineblock11.spoofer.client;
 
 import com.mineblock11.spoofer.SpooferManager;
+import com.mineblock11.spoofer.config.SpooferConfig;
+import com.mineblock11.spoofer.types.ModelSpoofState;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.LiteralMessage;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.command.CommandSource;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Pair;
+import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.Collection;
-import java.util.Random;
+import java.util.*;
 import java.util.stream.Stream;
 
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.argument;
@@ -26,15 +33,23 @@ import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.lit
 
 @Environment(EnvType.CLIENT)
 public class SpooferClient implements ClientModInitializer {
-    private static final Random RANDOM = new Random();
+    private static int randomNameSuffix = 0;
+    public static Logger logger = LoggerFactory.getLogger("spoofer");
 
     @Override
     public void onInitializeClient() {
+        logger.info("Spoofer Entry");
+        SpooferConfig.getScope().save();
+
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (SpooferManager.SPOOF_NEW_PLAYERS.getLeft() && !SpooferManager.getOnlinePlayerNames().isEmpty()) {
+            if (MinecraftClient.getInstance().player != null &&
+                    SpooferConfig.getScope().SPOOF_NEW_PLAYERS_PREFIX != null && !(Objects.equals(SpooferConfig.getScope().SPOOF_NEW_PLAYERS_PREFIX, "<disabled>")) &&
+                    !SpooferManager.getOnlinePlayerNames().isEmpty()) {
                 handleSpoofNewPlayers();
             }
         });
+
+        Pair<Boolean, Boolean> pair = new Pair<>(false, false);
 
         ClientCommandRegistrationCallback.EVENT.register(((dispatcher, registryAccess) -> {
             registerSpoofCommand(dispatcher);
@@ -47,7 +62,10 @@ public class SpooferClient implements ClientModInitializer {
             registerWhoSpoofCommand(dispatcher);
             registerSpoofNextCommand(dispatcher);
             registerSpoofNextClearCommand(dispatcher);
+            registerToggleModelSpoofCommand(dispatcher);
         }));
+
+        logger.info("Spoofer Entry done!");
     }
 
     private void handleSpoofNewPlayers() {
@@ -60,7 +78,7 @@ public class SpooferClient implements ClientModInitializer {
             if (SpooferManager.currentlySpoofed.containsKey(player) || SpooferManager.AUTOSPOOF_SEEN_PLAYERS.contains(player)) {
                 continue;
             }
-            spoofPlayer(player, SpooferManager.SPOOF_NEW_PLAYERS.getRight(), SpooferManager.SPOOF_NEW_PLAYERS.getLeft());
+            spoofPlayer(player, SpooferConfig.getScope().SPOOF_NEW_PLAYERS_PREFIX, SpooferConfig.getScope().SPOOF_NEW_PLAYERS_KEEPSKIN);
             SpooferManager.AUTOSPOOF_SEEN_PLAYERS.add(player);
         }
     }
@@ -74,7 +92,7 @@ public class SpooferClient implements ClientModInitializer {
     }
 
     private void spoofPlayer(String realName, String namePrefix, boolean keepSkin) {
-        int randomSuffix = RANDOM.nextInt(1000);
+        int randomSuffix = randomNameSuffix++;
         String paddedNumber = String.format("%03d", randomSuffix);
         SpooferManager.currentlySpoofed.put(realName, new Pair<>(namePrefix + paddedNumber, keepSkin));
     }
@@ -102,7 +120,8 @@ public class SpooferClient implements ClientModInitializer {
                 .executes(ctx -> {
                     SpooferManager.currentlySpoofed.clear();
                     sendFeedback(ctx, "Unspoofed everyone", Formatting.GRAY);
-                    SpooferManager.SPOOF_NEW_PLAYERS.setLeft(false);
+                SpooferConfig.getScope().SPOOF_NEW_PLAYERS_KEEPSKIN = false;
+                    randomNameSuffix = 0;
                     return Command.SINGLE_SUCCESS;
                 })
                 .then(argument("target", StringArgumentType.string())
@@ -118,29 +137,48 @@ public class SpooferClient implements ClientModInitializer {
 
     private void registerToggleChatSpoofCommand(CommandDispatcher<FabricClientCommandSource> dispatcher) {
         dispatcher.register(literal("togglechatspoof").executes(ctx -> {
-            SpooferManager.ENABLE_CHAT_SPOOF = !SpooferManager.ENABLE_CHAT_SPOOF;
-            sendFeedback(ctx, "Chat Spoof is now " + (SpooferManager.ENABLE_CHAT_SPOOF ? "enabled" : "disabled"),
-                    SpooferManager.ENABLE_CHAT_SPOOF ? Formatting.GREEN : Formatting.RED);
+            SpooferConfig.getScope().ENABLE_CHAT_SPOOF = !SpooferConfig.getScope().ENABLE_CHAT_SPOOF;
+            sendFeedback(ctx, "Chat Spoof is now " + (SpooferConfig.getScope().ENABLE_CHAT_SPOOF ? "enabled" : "disabled"),
+                    SpooferConfig.getScope().ENABLE_CHAT_SPOOF ? Formatting.GREEN : Formatting.RED);
             return Command.SINGLE_SUCCESS;
         }));
     }
 
     private void registerToggleTabSpoofCommand(CommandDispatcher<FabricClientCommandSource> dispatcher) {
         dispatcher.register(literal("toggletabspoof").executes(ctx -> {
-            SpooferManager.ENABLE_TAB_SPOOF = !SpooferManager.ENABLE_TAB_SPOOF;
-            sendFeedback(ctx, "TAB Spoof is now " + (SpooferManager.ENABLE_TAB_SPOOF ? "enabled" : "disabled"),
-                    SpooferManager.ENABLE_TAB_SPOOF ? Formatting.GREEN : Formatting.RED);
+            SpooferConfig.getScope().ENABLE_TAB_SPOOF = !SpooferConfig.getScope().ENABLE_TAB_SPOOF;
+            sendFeedback(ctx, "TAB Spoof is now " + (SpooferConfig.getScope().ENABLE_TAB_SPOOF ? "enabled" : "disabled"),
+                    SpooferConfig.getScope().ENABLE_TAB_SPOOF ? Formatting.GREEN : Formatting.RED);
             return Command.SINGLE_SUCCESS;
         }));
     }
 
     private void registerToggleSpoofFeedbackCommand(CommandDispatcher<FabricClientCommandSource> dispatcher) {
         dispatcher.register(literal("togglespooffeedback").executes(ctx -> {
-            SpooferManager.ENABLE_SPOOF_FEEDBACK = !SpooferManager.ENABLE_SPOOF_FEEDBACK;
-            sendFeedback(ctx, "Spoof feedback is now " + (SpooferManager.ENABLE_SPOOF_FEEDBACK ? "enabled" : "disabled"),
-                    SpooferManager.ENABLE_SPOOF_FEEDBACK ? Formatting.GREEN : Formatting.RED);
+            SpooferConfig.getScope().ENABLE_SPOOF_FEEDBACK = !SpooferConfig.getScope().ENABLE_SPOOF_FEEDBACK;
+            sendFeedback(ctx, "Spoof feedback is now " + (SpooferConfig.getScope().ENABLE_SPOOF_FEEDBACK ? "enabled" : "disabled"),
+                    SpooferConfig.getScope().ENABLE_SPOOF_FEEDBACK ? Formatting.GREEN : Formatting.RED);
             return Command.SINGLE_SUCCESS;
         }));
+    }
+
+    private void registerToggleModelSpoofCommand(CommandDispatcher<FabricClientCommandSource> dispatcher) {
+        dispatcher.register(literal("togglemodelspoof").then(argument("status", StringArgumentType.string())
+                .suggests((ctx, builder) -> CommandSource.suggestMatching(() -> Stream.of("off", "stretch", "model").iterator(), builder))
+                .executes(ctx -> {
+                    String stateString = StringArgumentType.getString(ctx, "status");
+                    ModelSpoofState state = switch (stateString) {
+                        case "off" -> ModelSpoofState.OFF;
+                        case "stretch" -> ModelSpoofState.STRETCH;
+                        case "model" -> ModelSpoofState.MODEL;
+                        default -> throw new SimpleCommandExceptionType(new LiteralMessage("Invalid model spoof state")).create();
+                    };
+
+                    SpooferConfig.getScope().MODEL_SPOOF = state;
+                    sendFeedback(ctx, "Model Spoof is now set to " + state.name().toLowerCase(),
+                            state == ModelSpoofState.OFF ? Formatting.RED : Formatting.GREEN);
+                    return Command.SINGLE_SUCCESS;
+                })));
     }
 
     private void registerSpoofNewCommand(CommandDispatcher<FabricClientCommandSource> dispatcher) {
@@ -168,7 +206,7 @@ public class SpooferClient implements ClientModInitializer {
                         .executes(ctx -> executeSpoofCommand(ctx, "ALL", StringArgumentType.getString(ctx, "namePrefix"), false)
                         )
                 ).executes(ctx -> {
-                    SpooferManager.SPOOF_NEW_PLAYERS.setLeft(true);
+                    SpooferConfig.getScope().SPOOF_NEW_PLAYERS_KEEPSKIN = true;
                     return executeSpoofCommand(ctx, "ALL", "fake_name", false);
                 }));
     }
@@ -186,9 +224,9 @@ public class SpooferClient implements ClientModInitializer {
                         .executes(ctx -> executeWhoSpoofCommand(ctx, StringArgumentType.getString(ctx, "target")))
                 )
                 .executes(ctx -> {
-                    boolean wasEnabled = SpooferManager.ENABLE_CHAT_SPOOF;
+                    boolean wasEnabled = SpooferConfig.getScope().ENABLE_CHAT_SPOOF;
                     if (wasEnabled) {
-                        SpooferManager.ENABLE_CHAT_SPOOF = false;
+                        SpooferConfig.getScope().ENABLE_CHAT_SPOOF = false;
                     }
 
                     sendFeedback(ctx, "Currently spoofed players:");
@@ -197,7 +235,7 @@ public class SpooferClient implements ClientModInitializer {
                     });
 
                     if (wasEnabled) {
-                        SpooferManager.ENABLE_CHAT_SPOOF = true;
+                        SpooferConfig.getScope().ENABLE_CHAT_SPOOF = true;
                     }
                     return Command.SINGLE_SUCCESS;
                 }));
@@ -244,12 +282,12 @@ public class SpooferClient implements ClientModInitializer {
     }
 
     private int executeSpoofNewCommand(CommandContext<FabricClientCommandSource> ctx, boolean keepSkin, String namePrefix) {
-        SpooferManager.SPOOF_NEW_PLAYERS.setLeft(!SpooferManager.SPOOF_NEW_PLAYERS.getLeft());
-        SpooferManager.SPOOF_NEW_PLAYERS.setRight(namePrefix);
+        SpooferConfig.getScope().SPOOF_NEW_PLAYERS_KEEPSKIN = !SpooferConfig.getScope().SPOOF_NEW_PLAYERS_KEEPSKIN;
+        SpooferConfig.getScope().SPOOF_NEW_PLAYERS_PREFIX = namePrefix;
         SpooferManager.AUTOSPOOF_SEEN_PLAYERS.clear();
-        String stateText = SpooferManager.SPOOF_NEW_PLAYERS.getLeft() ? "ENABLED" : "DISABLED";
+        String stateText = SpooferConfig.getScope().SPOOF_NEW_PLAYERS_KEEPSKIN ? "ENABLED" : "DISABLED";
         sendFeedback(ctx, "Spoofing new joins as \"" + namePrefix + "\": " + stateText + " (" + (keepSkin ? "" : "not ") + "keeping skins)",
-                SpooferManager.SPOOF_NEW_PLAYERS.getLeft() ? Formatting.GREEN : Formatting.RED);
+                SpooferConfig.getScope().SPOOF_NEW_PLAYERS_KEEPSKIN ? Formatting.GREEN : Formatting.RED);
         return Command.SINGLE_SUCCESS;
     }
 
@@ -261,9 +299,9 @@ public class SpooferClient implements ClientModInitializer {
     }
 
     private int executeWhoSpoofCommand(CommandContext<FabricClientCommandSource> ctx, String target) {
-        boolean wasEnabled = SpooferManager.ENABLE_CHAT_SPOOF;
+        boolean wasEnabled = SpooferConfig.getScope().ENABLE_CHAT_SPOOF;
         if (wasEnabled) {
-            SpooferManager.ENABLE_CHAT_SPOOF = false;
+            SpooferConfig.getScope().ENABLE_CHAT_SPOOF = false;
         }
 
         String spoofedName = SpooferManager.getSpoofedName(target);
@@ -274,7 +312,7 @@ public class SpooferClient implements ClientModInitializer {
         }
 
         if (wasEnabled) {
-            SpooferManager.ENABLE_CHAT_SPOOF = true;
+            SpooferConfig.getScope().ENABLE_CHAT_SPOOF = true;
         }
         return Command.SINGLE_SUCCESS;
     }
@@ -293,20 +331,29 @@ public class SpooferClient implements ClientModInitializer {
     }
 
     private void sendFeedback(CommandContext<FabricClientCommandSource> ctx, String message) {
-        if (SpooferManager.ENABLE_SPOOF_FEEDBACK) {
+        if (SpooferConfig.getScope().ENABLE_SPOOF_FEEDBACK) {
             ctx.getSource().sendFeedback(Text.literal(message));
         }
     }
 
     private void sendFeedback(CommandContext<FabricClientCommandSource> ctx, String message, Formatting formatting) {
-        if (SpooferManager.ENABLE_SPOOF_FEEDBACK) {
+        if (SpooferConfig.getScope().ENABLE_SPOOF_FEEDBACK) {
             ctx.getSource().sendFeedback(Text.literal(message).formatted(formatting));
         }
     }
 
     private void sendError(CommandContext<FabricClientCommandSource> ctx, String message) {
-        if (SpooferManager.ENABLE_SPOOF_FEEDBACK) {
+        if (SpooferConfig.getScope().ENABLE_SPOOF_FEEDBACK) {
             ctx.getSource().sendError(Text.literal(message));
+        }
+    }
+
+    @Nullable
+    public static String getCurrentServer() {
+        try {
+            return Objects.requireNonNull(Objects.requireNonNull(MinecraftClient.getInstance().getNetworkHandler()).getServerInfo()).address;
+        } catch (NullPointerException e){
+            return null;
         }
     }
 }

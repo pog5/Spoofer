@@ -167,9 +167,9 @@ public class SkinManager {
     public static boolean isSkinSlim(String username) {
         if (SpooferManager.SLIM_CACHE.containsKey(username))
             return SpooferManager.SLIM_CACHE.get(username);
-//        if (username.isBlank() || !SpooferManager.isValidUsername(username)) {
-//            return false;
-//        }
+        if (username == null || username.isBlank() || !SpooferManager.isValidUsername(username)) {
+            return false;
+        }
         try {
             String uuid = getUUID(username);
             String sessionInfo = getHTML("https://sessionserver.mojang.com/session/minecraft/profile/" + uuid);
@@ -183,6 +183,7 @@ public class SkinManager {
             return status;
         } catch (Exception e) {
             System.err.println("[SPOOFER]: Error loading skin for " + username);
+            SpooferManager.SLIM_CACHE.put(username, false);
             return false;
         }
     }
