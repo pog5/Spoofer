@@ -1,9 +1,6 @@
 package com.mineblock11.spoofer;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.google.gson.*;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
@@ -15,6 +12,7 @@ import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Objects;
 
 public class SkinManager {
 
@@ -140,13 +138,18 @@ public class SkinManager {
     }
 
     // Helper function to get UUID from Mojang API
-    private static String getUUID(String username) throws IOException, URISyntaxException {
-        String response = getHTML("https://api.mojang.com/users/profiles/minecraft/" + username);
-        if (response.isEmpty()) {
-            response = getHTML("https://api.mojang.com/users/profiles/minecraft/alex");
+    private static String getUUID(String username) throws IOException {
+        try {
+            String response = getHTML("https://api.mojang.com/users/profiles/minecraft/" + username);
+            if (response.isEmpty()) {
+                response = getHTML("https://api.mojang.com/users/profiles/minecraft/alex");
+            }
+            JsonObject json = JsonParser.parseString(response).getAsJsonObject();
+            return json.get("id").getAsString();
+        } catch (URISyntaxException e) {
+            // will never happen
         }
-        JsonObject json = JsonParser.parseString(response).getAsJsonObject();
-        return json.get("id").getAsString();
+        return "";
     }
 
     // Helper function to get texture URL from session info
@@ -164,79 +167,150 @@ public class SkinManager {
         return null; // Or throw an exception if texture not found
     }
 
-    public static boolean isSkinSlim(String username) {
-        if (SpooferManager.SLIM_CACHE.containsKey(username))
-            return SpooferManager.SLIM_CACHE.get(username);
-        if (username == null || username.isBlank() || !SpooferManager.isValidUsername(username)) {
-            return false;
-        }
+    /**
+     * Retrieves the skin model type ('classic' or 'slim') for a given player UUID.
+     *
+     * @param username The player's UUID as a string without hyphens.
+     * @return If the player's skin is Slim (True) or not (False).
+     * @throws IOException If an error occurs while fetching the player's skin.
+     */
+    public static boolean isSkinSlim(String username) throws IOException {
+        if (SpooferManager.SLIM_CACHE.containsKey(username)) return SpooferManager.SLIM_CACHE.get(username);
+//        else Thread.startVirtualThread(() -> {
+//            try {
+//                isSkinSlimBackend(username);
+//            } catch (IOException e) {
+//                if (!e.getMessage().contains("code: 429")) e.printStackTrace();
+//            }
+//        });
         try {
             String uuid = getUUID(username);
-            String sessionInfo = getHTML("https://sessionserver.mojang.com/session/minecraft/profile/" + uuid);
-            String textureUrl = getTextureURL(sessionInfo);
-            URI uri = new URI(textureUrl);
-            URL url = uri.toURL();
-            BufferedImage img = ImageIO.read(url);
-//            return img.getHeight() == 32;
-            boolean status =  isSlimSkin(img);
+//            String sessionInfo = getHTML("https://sessionserver.mojang.com/session/minecraft/profile/" + uuid);
+//            String textureUrl = getTextureURL(sessionInfo);
+//            URI uri = new URI(textureUrl);
+//            URL url = uri.toURL();
+//            BufferedImage img = ImageIO.read(url);
+////            return img.getHeight() == 32;
+//            boolean status = isSlimSkin(img);
+            boolean status = isSkinSlimBackend(username);
             SpooferManager.SLIM_CACHE.put(username, status);
             return status;
         } catch (Exception e) {
             System.err.println("[SPOOFER]: Error loading skin for " + username);
-            SpooferManager.SLIM_CACHE.put(username, false);
+//            SpooferManager.SLIM_CACHE.put(username, false);
             return false;
         }
     }
 
-    public static boolean isSkinSlim(URI url) {
-        try {
-            BufferedImage img = ImageIO.read(url.toURL());
-            return isSlimSkin(img);
-        } catch (IOException e) {
-            e.printStackTrace();
+    private static boolean isSkinSlimBackend(String username) throws IOException {
+        if (username == null || username.isBlank() || !SpooferManager.isValidUsername(username)) {
             return false;
         }
-    }
+        String uuid = getUUID(username);
+        String urlStr = "https://sessionserver.mojang.com/session/minecraft/profile/" + uuid;
+        URL url = new URL(urlStr);
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        con.setRequestMethod("GET");
+        int responseCode = con.getResponseCode();
 
-    public static boolean isSlimSkin(BufferedImage skin) {
-        int width = skin.getWidth();
-        int height = skin.getHeight();
+        if (responseCode == HttpURLConnection.HTTP_OK) { // success
+            BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+            String inputLine;
+            StringBuilder response = new StringBuilder();
 
-        // Verify valid skin dimensions (64x64 or 64x32)
-        if (!((width == 64 && height == 64) || (width == 64 && height == 32))) {
-            System.out.println("Invalid skin dimensions.");
-            return false; // Default to classic model if dimensions are invalid
-        }
-
-        // Coordinates to check for transparency on the outermost arm pixels
-        int[][] coordinatesToCheck = {
-                // Right Arm Main Layer (outermost column)
-                {44, 16}, {44, 17}, {44, 18}, {44, 19}, {44, 20}, {44, 21}, {44, 22}, {44, 23},
-                {44, 24}, {44, 25}, {44, 26}, {44, 27}, {44, 28}, {44, 29}, {44, 30}, {44, 31},
-                // Left Arm Main Layer (outermost column)
-                {36, 48}, {36, 49}, {36, 50}, {36, 51}, {36, 52}, {36, 53}, {36, 54}, {36, 55},
-                {36, 56}, {36, 57}, {36, 58}, {36, 59}, {36, 60}, {36, 61}, {36, 62}, {36, 63}
-                // Similarly, you can add coordinates for the second layers if needed
-        };
-
-        int transparentPixelCount = 0;
-        int totalPixels = coordinatesToCheck.length;
-
-        for (int[] coord : coordinatesToCheck) {
-            int x = coord[0];
-            int y = coord[1];
-            if (x >= width || y >= height) {
-                continue; // Skip if out of bounds
+            while ((inputLine = in.readLine()) != null) {
+                response.append(inputLine);
             }
-            int pixel = skin.getRGB(x, y);
-            int alpha = (pixel >> 24) & 0xff;
-            if (alpha == 0) {
-                transparentPixelCount++;
-            }
-        }
+            in.close();
 
-        // Determine if the majority of the outer arm pixels are transparent
-        double transparentRatio = (double) transparentPixelCount / totalPixels;
-        return transparentRatio > 0.9; // Threshold can be adjusted based on requirements
+            // Parse JSON
+            Gson gson = new Gson();
+            JsonObject jsonObject = gson.fromJson(response.toString(), JsonObject.class);
+            JsonArray properties = jsonObject.getAsJsonArray("properties");
+
+            for (JsonElement propertyElement : properties) {
+                JsonObject property = propertyElement.getAsJsonObject();
+                String name = property.get("name").getAsString();
+                if ("textures".equals(name)) {
+                    String value = property.get("value").getAsString();
+                    // Base64 decode
+                    byte[] decodedBytes = Base64.getDecoder().decode(value);
+                    String decodedString = new String(decodedBytes);
+
+                    // Parse the decoded JSON
+                    JsonObject decodedJson = gson.fromJson(decodedString, JsonObject.class);
+
+                    JsonObject textures = decodedJson.getAsJsonObject("textures");
+                    JsonObject skin = textures.getAsJsonObject("SKIN");
+                    if (skin.has("metadata")) {
+                        JsonObject metadata = skin.getAsJsonObject("metadata");
+                        if (metadata.has("model")) {
+                            String model = metadata.get("model").getAsString();
+                            boolean isSlim = Objects.equals(model, "slim");
+                            SpooferManager.SLIM_CACHE.put(username, isSlim);
+                            return isSlim; // LIES LIES LIES!!! IF THERES A MODEL
+                        }
+                    } else {
+                        return false; // for some reason skins without metadata are considered "classic"
+                    }
+                }
+            }
+            // If no model info is found, default to "slim"
+            return true;
+        } else {
+            throw new IOException("Failed to get profile for UUID: " + uuid + ", response code: " + responseCode);
+        }
     }
+//
+//    public static boolean isSkinSlim(URI url) {
+//        try {
+//            BufferedImage img = ImageIO.read(url.toURL());
+//            return isSlimSkin(img);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//            return false;
+//        }
+//    }
+//
+//    public static boolean isSlimSkin(BufferedImage skin) {
+//        int width = skin.getWidth();
+//        int height = skin.getHeight();
+//
+//        // Verify valid skin dimensions (64x64 or 64x32)
+//        if (!((width == 64 && height == 64) || (width == 64 && height == 32))) {
+//            System.out.println("Invalid skin dimensions.");
+//            return false; // Default to classic model if dimensions are invalid
+//        }
+//
+//        // Coordinates to check for transparency on the outermost arm pixels
+//        int[][] coordinatesToCheck = {
+//                // Right Arm Main Layer (outermost column)
+//                {44, 16}, {44, 17}, {44, 18}, {44, 19}, {44, 20}, {44, 21}, {44, 22}, {44, 23},
+//                {44, 24}, {44, 25}, {44, 26}, {44, 27}, {44, 28}, {44, 29}, {44, 30}, {44, 31},
+//                // Left Arm Main Layer (outermost column)
+//                {36, 48}, {36, 49}, {36, 50}, {36, 51}, {36, 52}, {36, 53}, {36, 54}, {36, 55},
+//                {36, 56}, {36, 57}, {36, 58}, {36, 59}, {36, 60}, {36, 61}, {36, 62}, {36, 63}
+//                // Similarly, you can add coordinates for the second layers if needed
+//        };
+//
+//        int transparentPixelCount = 0;
+//        int totalPixels = coordinatesToCheck.length;
+//
+//        for (int[] coord : coordinatesToCheck) {
+//            int x = coord[0];
+//            int y = coord[1];
+//            if (x >= width || y >= height) {
+//                continue; // Skip if out of bounds
+//            }
+//            int pixel = skin.getRGB(x, y);
+//            int alpha = (pixel >> 24) & 0xff;
+//            if (alpha == 0) {
+//                transparentPixelCount++;
+//            }
+//        }
+//
+//        // Determine if the majority of the outer arm pixels are transparent
+//        double transparentRatio = (double) transparentPixelCount / totalPixels;
+//        return transparentRatio > 0.9; // Threshold can be adjusted based on requirements
+//    }
 }

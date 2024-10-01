@@ -264,6 +264,16 @@ public class SpooferClient implements ClientModInitializer {
         }));
     }
 
+    private void registerSpooferDebugCommand(CommandDispatcher<FabricClientCommandSource> dispatcher) {
+        dispatcher.register(literal("spooferdebug").executes(ctx -> {
+            sendFeedback(ctx, "Current server: " + getCurrentServer());
+            return Command.SINGLE_SUCCESS;
+        }).then(literal("clearcache").executes(ctx -> {
+            clearCache(ctx);
+            return Command.SINGLE_SUCCESS;
+        })));
+    }
+
     private int executeSpoofCommand(CommandContext<FabricClientCommandSource> ctx, String target, String username, boolean keepSkin) {
         if (target.equals("ALL")) {
             int playerCount = SpooferManager.getOnlinePlayerNames().size();
@@ -346,6 +356,11 @@ public class SpooferClient implements ClientModInitializer {
         if (SpooferConfig.getScope().ENABLE_SPOOF_FEEDBACK) {
             ctx.getSource().sendError(Text.literal(message));
         }
+    }
+
+    private void clearCache(CommandContext<FabricClientCommandSource> ctx) {
+        SpooferManager.TEXTURE_CACHE.clear();
+        sendFeedback(ctx, "Cleared skin cache");
     }
 
     @Nullable

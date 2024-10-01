@@ -23,11 +23,7 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import java.net.URI;
-import java.net.URISyntaxException;
-
-import static com.mineblock11.spoofer.SpooferManager.TEXTURE_CACHE;
-import static com.mineblock11.spoofer.SpooferManager.currentlySpoofed;
+import static com.mineblock11.spoofer.SpooferManager.*;
 
 @Mixin(PlayerEntityRenderer.class)
 public abstract class PlayerEntityRendererMixin extends LivingEntityRenderer<AbstractClientPlayerEntity, PlayerEntityModel<AbstractClientPlayerEntity>> {
@@ -36,55 +32,31 @@ public abstract class PlayerEntityRendererMixin extends LivingEntityRenderer<Abs
     private static AbstractClientPlayerEntity currentEntity; // More descriptive name
     private EntityRendererFactory.Context rendererContext;
 
-    public PlayerEntityRendererMixin(EntityRendererFactory.Context ctx,
-                                     PlayerEntityModel<AbstractClientPlayerEntity> model,
-                                     float shadowRadius) {
+    public PlayerEntityRendererMixin(EntityRendererFactory.Context ctx, PlayerEntityModel<AbstractClientPlayerEntity> model, float shadowRadius) {
         super(ctx, model, shadowRadius);
     }
 
     @Inject(method = "<init>(Lnet/minecraft/client/render/entity/EntityRendererFactory$Context;Z)V", at = @At("RETURN"))
-    private void onPlayerEntityRendererInit(EntityRendererFactory.Context ctx, boolean slim, CallbackInfo ci) {
+    private void Spoofer$ctxSetter$init(EntityRendererFactory.Context ctx, boolean slim, CallbackInfo ci) {
         this.rendererContext = ctx;
     }
 
-    @Inject(method = "render(Lnet/minecraft/client/network/AbstractClientPlayerEntity;FFLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;I)V",
-            at = @At("HEAD"))
-    public void render(AbstractClientPlayerEntity player, float f, float g, MatrixStack matrixStack, VertexConsumerProvider vertexConsumerProvider, int i, CallbackInfo ci)  {
-        String realName = player.getGameProfile().getName();
-        boolean shouldSpoofThisPlayer = SpooferManager.currentlySpoofed.containsKey(realName);
-        boolean keepSkin = true;
-        if (SpooferManager.currentlySpoofed.containsKey(realName))
-            keepSkin = SpooferManager.currentlySpoofed.get(realName).getRight();
-        boolean isPlayerNpc = realName.startsWith("CIT-");
-
-        if (isPlayerNpc || SpooferConfig.getScope().MODEL_SPOOF == ModelSpoofState.OFF) {
+    @Inject(method = "render(Lnet/minecraft/client/network/AbstractClientPlayerEntity;FFLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;I)V", at = @At("HEAD"))
+    public void Spoofer$widthChanger$render(AbstractClientPlayerEntity player, float f, float g, MatrixStack matrixStack, VertexConsumerProvider vertexConsumerProvider, int i, CallbackInfo ci) {
+        if (player.getGameProfile().getName().startsWith("CIT-") || !isValidUsername(player.getGameProfile().getName()))
             return;
+        ModelSpoofState modelSpoofState = SpooferConfig.getScope().MODEL_SPOOF;
+
+        Pair<String, Boolean> nameAndIsSlim = SpooferManager.getSpoofedNameAndIsSlim(player.getGameProfile().getName());
+        boolean isSlim = nameAndIsSlim.getRight();
+        if (modelSpoofState == ModelSpoofState.STRETCH) {
+            if (isSlim) isSlim = false;
         }
-
-        if (shouldSpoofThisPlayer) {
-            boolean isSpoofedSkinSlim;
-            if (SpooferConfig.getScope().MODEL_SPOOF == ModelSpoofState.STRETCH) {
-                isSpoofedSkinSlim = false;
-            } else {
-                Pair<String, Boolean> spoofEntry = currentlySpoofed.get(realName);
-                String spoofedName = spoofEntry != null ? spoofEntry.getLeft() : null;
-                if (spoofedName == null) {
-                    return;
-                }
-                isSpoofedSkinSlim = SkinManager.isSkinSlim(spoofedName);
-            }
-
-            // Create and set the appropriate model
-            this.model = new PlayerEntityModel<>(this.rendererContext.getPart(isSpoofedSkinSlim ? EntityModelLayers.PLAYER_SLIM : EntityModelLayers.PLAYER), isSpoofedSkinSlim);
-        } else {
-            boolean isSlim = SkinManager.isSkinSlim(player.getName().getString());
-
-            this.model = new PlayerEntityModel<>(this.rendererContext.getPart(isSlim ? EntityModelLayers.PLAYER_SLIM : EntityModelLayers.PLAYER), isSlim);
-        }
+        this.model = new PlayerEntityModel<>(this.rendererContext.getPart(isSlim ? EntityModelLayers.PLAYER_SLIM : EntityModelLayers.PLAYER), isSlim);
     }
 
     @Inject(method = "getTexture(Lnet/minecraft/client/network/AbstractClientPlayerEntity;)Lnet/minecraft/util/Identifier;", cancellable = true, at = @At("TAIL"))
-    public void Spoofer$getTexture(AbstractClientPlayerEntity playerEntity, CallbackInfoReturnable<Identifier> cir) {
+    public void Spoofer$skinChanger$getTexture(AbstractClientPlayerEntity playerEntity, CallbackInfoReturnable<Identifier> cir) {
         if (SpooferConfig.getScope().MODEL_SPOOF == ModelSpoofState.OFF) return;
         String playerName = playerEntity.getGameProfile().getName();
         Pair<String, Boolean> spoofEntry = currentlySpoofed.get(playerName);
@@ -132,22 +104,4 @@ public abstract class PlayerEntityRendererMixin extends LivingEntityRenderer<Abs
 
         return text;
     }
-//
-//    @ModifyVariable(method = "<init>", at = @At(value = "NEW", target = "(Lnet/minecraft/client/model/ModelPart;Z)Lnet/minecraft/client/render/entity/model/PlayerEntityModel;"), argsOnly = true)
-//    private static boolean Spoofer$modifySlimModel(boolean isSlim) {
-//        if (currentEntity == null) {
-//            return isSlim;
-//        }
-//
-//        String playerName = currentEntity.getGameProfile().getName();
-//        Pair<String, Boolean> spoofEntry = SpooferManager.currentlySpoofed.get(playerName);
-//        String spoofedName = spoofEntry != null ? spoofEntry.getLeft() : null;
-//        if (spoofedName == null) {
-//            return isSlim;
-//        }
-//
-//        return SkinManager.isSkinSlim(spoofedName);
-//    }
-
-
 }

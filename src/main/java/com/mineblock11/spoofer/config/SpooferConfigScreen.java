@@ -7,12 +7,10 @@ import com.terraformersmc.modmenu.api.ModMenuApi;
 import dev.isxander.yacl3.api.*;
 import dev.isxander.yacl3.api.controller.*;
 import dev.isxander.yacl3.impl.controller.EnumControllerBuilderImpl;
+import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
 public class SpooferConfigScreen implements ModMenuApi {
     @Override
@@ -39,23 +37,25 @@ public class SpooferConfigScreen implements ModMenuApi {
                 .build();
     }
 
-    private HashSet<OptionGroup> createScopeOptions() {
-        HashSet<OptionGroup> groups = new HashSet<>();
+    private ArrayList<OptionGroup> createScopeOptions() {
+        final Text globalScope = Text.literal("GLOBAL").setStyle(Style.EMPTY.withColor(0xFFAA00));
+        ArrayList<OptionGroup> groups = new ArrayList<>();
 
         Set<SpooferOptions> rawScopes = SpooferConfig.scopes;
-        Set<SpooferOptions> sortedScopes = new HashSet<>();
-        for (SpooferOptions opts : rawScopes) {
-            if (opts.scope == SpoofScope.GLOBAL) {
-                sortedScopes.add(opts);
-                rawScopes.remove(opts);
-                break;
-            }
-        }
+        ArrayList<SpooferOptions> sortedScopes = new ArrayList<>();
+//        for (SpooferOptions opts : rawScopes) {
+//            if (opts.scope == SpoofScope.GLOBAL) {
+//                sortedScopes.add(opts);
+//                rawScopes.remove(opts);
+//                break;
+//            }
+//        }
         sortedScopes.addAll(rawScopes);
+        sortedScopes.sort(Comparator.comparingInt(o -> o.scope.ordinal()));
 
         for (SpooferOptions opts : sortedScopes) {
             groups.add(OptionGroup.createBuilder()
-                    .name(Text.literal("Scope: " + opts.scope.name() + (opts.server.map(s -> " - " + s).orElse(""))))
+                    .name(Text.literal("Scope: ").append((opts.scope == SpoofScope.GLOBAL ? globalScope : Text.literal(opts.server.get()))))
                     .description(OptionDescription.of(Text.of("Which server should the settings apply to? If \"GLOBAL\", you can change the base settings that all servers use as a default.")))
                     .option(Option.<Boolean>createBuilder()
                             .name(Text.literal("Chat Feedback"))

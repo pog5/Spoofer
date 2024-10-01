@@ -1,6 +1,7 @@
 package com.mineblock11.spoofer;
 
 import com.mineblock11.spoofer.config.SpooferConfig;
+import com.mineblock11.spoofer.types.ModelSpoofState;
 import com.mojang.authlib.GameProfile;
 import net.fabricmc.api.ModInitializer;
 import net.minecraft.client.MinecraftClient;
@@ -11,6 +12,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Pair;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -82,6 +84,22 @@ public class SpooferManager implements ModInitializer {
         if (username == null || username.isBlank())
             return false;
         return usernamePattern.matcher(username).matches();
+    }
+
+    public static Pair<String, Boolean> getSpoofedNameAndIsSlim(String username) {
+        try {
+            Pair<String, Boolean> spoofEntry = currentlySpoofed.get(username);
+            if (spoofEntry == null || SpooferConfig.getScope().MODEL_SPOOF == ModelSpoofState.OFF) {
+                return new Pair<>(username, SkinManager.isSkinSlim(username));
+            }
+
+            boolean stretch = SpooferConfig.getScope().MODEL_SPOOF != ModelSpoofState.STRETCH;
+            boolean isSlim = SkinManager.isSkinSlim(spoofEntry.getLeft());
+            return new Pair<>(spoofEntry.getLeft(), isSlim);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return new Pair<>(username, false);
+        }
     }
 
     @Override
