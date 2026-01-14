@@ -22,11 +22,11 @@ public class PlayerListMixin {
 
     @Inject(method = "getDisplayName", at = @At("TAIL"), cancellable = true)
     public void Spoofer$getDisplayName(CallbackInfoReturnable<Text> cir) {
-        if (this.profile.getName().equals("CIT-") || !SpooferConfig.getScope().ENABLE_TAB_SPOOF) {
+        if (this.profile.name().equals("CIT-") || !SpooferConfig.getScope().ENABLE_TAB_SPOOF) {
             return;
         }
 
-        String playerName = this.profile.getName();
+        String playerName = this.profile.name();
         if (SpooferManager.currentlySpoofed.containsKey(playerName)) {
             String spoofedName = SpooferManager.currentlySpoofed.get(playerName).getLeft();
             Text retValue = SpooferManager.replaceStringInTextKeepFormatting(cir.getReturnValue(), playerName, spoofedName);

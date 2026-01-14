@@ -5,14 +5,19 @@ import com.mineblock11.spoofer.SpooferManager;
 import com.mineblock11.spoofer.config.SpooferConfig;
 import com.mineblock11.spoofer.types.ModelSpoofState;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
+import net.minecraft.client.network.ClientPlayerLikeEntity;
 import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.command.OrderedRenderCommandQueue;
 import net.minecraft.client.render.entity.EntityRendererFactory;
 import net.minecraft.client.render.entity.LivingEntityRenderer;
 import net.minecraft.client.render.entity.PlayerEntityRenderer;
+import net.minecraft.client.render.entity.model.EntityModelLayer;
 import net.minecraft.client.render.entity.model.EntityModelLayers;
 import net.minecraft.client.render.entity.model.PlayerEntityModel;
+import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
+import net.minecraft.client.render.state.CameraRenderState;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.text.Text;
+import net.minecraft.entity.PlayerLikeEntity;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Pair;
 import org.spongepowered.asm.mixin.Mixin;
@@ -26,13 +31,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import static com.mineblock11.spoofer.SpooferManager.*;
 
 @Mixin(PlayerEntityRenderer.class)
-public abstract class PlayerEntityRendererMixin extends LivingEntityRenderer<AbstractClientPlayerEntity, PlayerEntityModel<AbstractClientPlayerEntity>> {
+public abstract class PlayerEntityRendererMixin<AvatarlikeEntity extends PlayerLikeEntity & ClientPlayerLikeEntity> extends LivingEntityRenderer<AvatarlikeEntity, PlayerEntityRenderState, PlayerEntityModel> {
 
     @Unique
-    private static AbstractClientPlayerEntity currentEntity; // More descriptive name
+    private static PlayerEntityRenderState currentEntity; // More descriptive name
+    @Unique
     private EntityRendererFactory.Context rendererContext;
 
-    public PlayerEntityRendererMixin(EntityRendererFactory.Context ctx, PlayerEntityModel<AbstractClientPlayerEntity> model, float shadowRadius) {
+    public PlayerEntityRendererMixin(EntityRendererFactory.Context ctx, PlayerEntityModel model, float shadowRadius) {
         super(ctx, model, shadowRadius);
     }
 
@@ -41,24 +47,27 @@ public abstract class PlayerEntityRendererMixin extends LivingEntityRenderer<Abs
         this.rendererContext = ctx;
     }
 
-    @Inject(method = "render(Lnet/minecraft/client/network/AbstractClientPlayerEntity;FFLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;I)V", at = @At("HEAD"))
-    public void Spoofer$widthChanger$render(AbstractClientPlayerEntity player, float f, float g, MatrixStack matrixStack, VertexConsumerProvider vertexConsumerProvider, int i, CallbackInfo ci) {
-        if (player.getGameProfile().getName().startsWith("CIT-") || !isValidUsername(player.getGameProfile().getName()))
+    @Inject(method = "renderLabelIfPresent(Lnet/minecraft/client/render/entity/state/PlayerEntityRenderState;Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;Lnet/minecraft/client/render/state/CameraRenderState;)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;submitLabel(Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/util/math/Vec3d;ILnet/minecraft/text/Text;ZIDLnet/minecraft/client/render/state/CameraRenderState;)V"))
+    public void Spoofer$widthChanger$render(PlayerEntityRenderState playerEntityRenderState, MatrixStack matrixStack, OrderedRenderCommandQueue orderedRenderCommandQueue, CameraRenderState cameraRenderState, CallbackInfo ci) {
+        if (playerEntityRenderState.playerName.getString().startsWith("CIT-") || !isValidUsername(playerEntityRenderState.playerName.getString()))
             return;
         ModelSpoofState modelSpoofState = SpooferConfig.getScope().MODEL_SPOOF;
 
-        Pair<String, Boolean> nameAndIsSlim = SpooferManager.getSpoofedNameAndIsSlim(player.getGameProfile().getName());
+        Pair<String, Boolean> nameAndIsSlim = SpooferManager.getSpoofedNameAndIsSlim(playerEntityRenderState.playerName.getString());
         boolean isSlim = nameAndIsSlim.getRight();
         if (modelSpoofState == ModelSpoofState.STRETCH) {
             if (isSlim) isSlim = false;
         }
-        this.model = new PlayerEntityModel<>(this.rendererContext.getPart(isSlim ? EntityModelLayers.PLAYER_SLIM : EntityModelLayers.PLAYER), isSlim);
+        EntityModelLayer normal = EntityModelLayers.PLAYER;
+        EntityModelLayer slim = EntityModelLayers.PLAYER_SLIM;
+        EntityModelLayer type = isSlim ? slim : normal;
+        this.model = new PlayerEntityModel(this.rendererContext.getPart(type), isSlim);
     }
 
-    @Inject(method = "getTexture(Lnet/minecraft/client/network/AbstractClientPlayerEntity;)Lnet/minecraft/util/Identifier;", cancellable = true, at = @At("TAIL"))
-    public void Spoofer$skinChanger$getTexture(AbstractClientPlayerEntity playerEntity, CallbackInfoReturnable<Identifier> cir) {
+    @Inject(method = "getTexture(Lnet/minecraft/client/render/entity/state/PlayerEntityRenderState;)Lnet/minecraft/util/Identifier;", cancellable = true, at = @At("TAIL"))
+    public void Spoofer$skinChanger$getTexture(PlayerEntityRenderState playerEntityRenderState, CallbackInfoReturnable<Identifier> cir) {
         if (SpooferConfig.getScope().MODEL_SPOOF == ModelSpoofState.OFF) return;
-        String playerName = playerEntity.getGameProfile().getName();
+        String playerName = playerEntityRenderState.playerName.getString();
         Pair<String, Boolean> spoofEntry = currentlySpoofed.get(playerName);
 
         if (spoofEntry != null && !spoofEntry.getRight()) { // Check if spoofed and not keeping skin
@@ -83,25 +92,25 @@ public abstract class PlayerEntityRendererMixin extends LivingEntityRenderer<Abs
         }
     }
 
-    @Inject(method = "renderLabelIfPresent(Lnet/minecraft/client/network/AbstractClientPlayerEntity;Lnet/minecraft/text/Text;Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;IF)V", at = @At("HEAD"))
-    public void Spoofer$storeEntityForLabel(AbstractClientPlayerEntity abstractClientPlayerEntity, Text text, MatrixStack matrixStack, VertexConsumerProvider vertexConsumerProvider, int i, float f, CallbackInfo ci) {
-        currentEntity = abstractClientPlayerEntity;
+    @Inject(method = "renderLabelIfPresent(Lnet/minecraft/client/render/entity/state/PlayerEntityRenderState;Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;Lnet/minecraft/client/render/state/CameraRenderState;)V", at = @At("HEAD"))
+    public void Spoofer$storeEntityForLabel(PlayerEntityRenderState playerEntityRenderState, MatrixStack matrixStack, OrderedRenderCommandQueue orderedRenderCommandQueue, CameraRenderState cameraRenderState, CallbackInfo ci) {
+        currentEntity = playerEntityRenderState;
     }
 
-    @ModifyVariable(method = "renderLabelIfPresent(Lnet/minecraft/client/network/AbstractClientPlayerEntity;Lnet/minecraft/text/Text;Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;IF)V", ordinal = 0, at = @At("HEAD"), argsOnly = true)
-    public Text Spoofer$modifyNameLabel(Text text) {
-        if (currentEntity == null) {
-            return text; // Handle potential null pointer
+    @ModifyVariable(method = "renderLabelIfPresent(Lnet/minecraft/client/render/entity/state/PlayerEntityRenderState;Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;Lnet/minecraft/client/render/state/CameraRenderState;)V", ordinal = 0, at = @At("HEAD"), argsOnly = true)
+    public PlayerEntityRenderState Spoofer$modifyNameLabel(PlayerEntityRenderState value) {
+        if (currentEntity == null || currentEntity.playerName == null) {
+            return value; // Handle potential null pointer
         }
 
-        String playerName = currentEntity.getGameProfile().getName();
+        String playerName = currentEntity.playerName.getString();
         Pair<String, Boolean> spoofEntry = SpooferManager.currentlySpoofed.get(playerName);
 
         if (spoofEntry != null) {
             String newName = spoofEntry.getLeft();
-            return SpooferManager.replaceStringInTextKeepFormatting(text, playerName, newName);
+            value.playerName = SpooferManager.replaceStringInTextKeepFormatting(value.playerName, playerName, newName);
         }
 
-        return text;
+        return value;
     }
 }

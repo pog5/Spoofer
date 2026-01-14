@@ -5,6 +5,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.util.Identifier;
+import org.lwjgl.system.MemoryUtil;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -12,6 +13,7 @@ import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Locale;
 import java.util.Objects;
 
 public class SkinManager {
@@ -108,7 +110,7 @@ public class SkinManager {
         Identifier id = Identifier.of("spoofer", file.getName().replace(".png", "").toLowerCase());
         NativeImage rawNativeImage = toNativeImage(file);
         NativeImage processedNativeImage = remapTexture(rawNativeImage);
-        NativeImageBackedTexture processedImageBackedTexture = new NativeImageBackedTexture(processedNativeImage);
+        NativeImageBackedTexture processedImageBackedTexture = new NativeImageBackedTexture(id::toString, processedNativeImage);
         MinecraftClient.getInstance().getTextureManager().registerTexture(id, processedImageBackedTexture);
         return id;
     }

@@ -57,7 +57,7 @@ public class SpooferManager implements ModInitializer {
         return client.getNetworkHandler().getPlayerList()
                 .stream()
                 .map(PlayerListEntry::getProfile)
-                .map(GameProfile::getName)
+                .map(GameProfile::name)
                 .filter(name -> !name.contains("CIT-"))
                 .collect(Collectors.toList());
     }
